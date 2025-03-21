@@ -116,7 +116,7 @@ button:hover {
   height: 12vw;
   background-color: rgb(98, 98, 98);
   justify-content: space-evenly;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .forms-box {
