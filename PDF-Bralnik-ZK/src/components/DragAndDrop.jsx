@@ -12,7 +12,7 @@ function DragAndDrop({ setNumForms }) {
   const { setPdfFiles, setExtractedTexts, setExtractingData } = usePdf();
   const [fileNames, setFileNames] = useState([]);
   const [processing, setProcessing] = useState(false);
-  const [folderPath, setFolderPath] = useState("C:/Users/valer/OneDrive - Univerza v Mariboru/Namizje/GZ-Celje/BranjeLK/PDF-bralnik/BranjeLK/pdf-doc");
+  const [folderPath, setFolderPath] = useState("C:/Users/valer/OneDrive - Univerza v Mariboru/Namizje/ZK_pdf_doc");
   const [isEditing, setIsEditing] = useState(false);
 
   const handleSelectFolder = async () => {
@@ -58,6 +58,7 @@ function DragAndDrop({ setNumForms }) {
     setProcessing(true);
     setExtractingData(true);
     console.log("Successfully processing data for:", fileNames);
+    console.log(extractTextFromPDF)
 
     let extractedTexts = [];
 
