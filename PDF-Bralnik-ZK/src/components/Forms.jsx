@@ -43,6 +43,9 @@ function Forms({ index = 0 }) {
   });
 
   const [allEmso, setAllEmso] = useState([]); 
+  const [maticna, setMaticna] = useState([]);
+  const [allPriimek_ime, setPriimekIme] = useState([])
+  const [naslov, setNaslov] = useState([])
 
   useEffect(() => {
     if (formData && formData[index]) {
@@ -82,26 +85,57 @@ function Forms({ index = 0 }) {
           parcela: parcelaValue
         }));
       }
-
+      //maticno stevilka tudi
       const emsoMatches = [...currentPdfText.matchAll(/Emšo:\s*([\d\*]+)(?=\s*\osebno)/gi)];
       const emsoValues = emsoMatches.map(match => match[1]);
-      setAllEmso(emsoValues); 
+      setAllEmso(emsoValues);
+      
+      const priimekImeMatch = [...currentPdfText.match(/osebno ime:\s*([\s\S]+?)(?=\s*naslov:)/gi)];
+      if (priimekImeMatch) {
+        const priimekImeMatchValues = priimekImeMatch.map(match => match.replace('osebno ime:', '').trim());
+        setPriimekIme(priimekImeMatchValues);
+      } else {
+        console.log("No match found.");
+      }
+
+      const naslovMatch = [...currentPdfText.match(/naslov:\s*([\s\S]*\s*(?:\d+\/\d+|omejitve)[^,]*)/i)];
+      console.log("Raw match:", naslovMatch);  // Check what match is returned
+
+      // Extract the value from the match
+      const naslovValue = naslovMatch.map(match => match[1]);
+      console.log("Naslov extracted:", naslovValue);
+
+      // Ensure the state is updated correctly
+      setNaslov(naslovValue);
+
+      const maticnaMatches = [...currentPdfText.matchAll()]
+      
+
     }
   }, [extractedTexts, extractingData, index]);
 
   return (
     <div className="forms">
-      <div>Extracted Number: {lastnikState.sifra ? lastnikState.sifra : "No match found"}</div>
-      <div>parcela: {lastnikState.parcela ? lastnikState.parcela : "ni najdenega zadetka"}</div>
-      <div>emso: {lastnikState.emso ? lastnikState.emso : "ni najdenega zadetka"}</div>
-
+      <div>Extracted Number: {lastnikState.sifra ? lastnikState.sifra : "/"}</div>
+      <div>parcela: {lastnikState.parcela ? lastnikState.parcela : "/"}</div>
       <div>All EMŠO Values:</div>
       <ul>
         {allEmso.length > 0 ? allEmso.map((emso, idx) => (
           <li key={idx}>{emso}</li>
-        )) : <li>No EMŠO values found</li>}
+        )) : <li>ni nobenga emša</li>}
       </ul>
-    </div>
+      <ul>
+        {allPriimek_ime.length > 0 ? allPriimek_ime.map((ime, idx) => (
+          <li key={idx}>{ime}</li>
+        )) : <li>ni nobenga imena</li>}
+      </ul>
+      
+      <ul>
+        {naslov.length > 0 ? naslov.map((ime, idx) => (
+          <li key={idx}>{ime}</li>
+        )) : <li>ni nobenga naslova</li>}
+      </ul>
+      </div>
   );
 }
 
