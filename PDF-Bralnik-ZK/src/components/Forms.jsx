@@ -46,6 +46,7 @@ function Forms({ index = 0 }) {
   const [maticna, setMaticna] = useState([]);
   const [allPriimek_ime, setPriimekIme] = useState([])
   const [naslov, setNaslov] = useState([])
+  const [delez, setDelez] = useState([])
 
   useEffect(() => {
     if (formData && formData[index]) {
@@ -85,32 +86,84 @@ function Forms({ index = 0 }) {
           parcela: parcelaValue
         }));
       }
-      //maticno stevilka tudi
-      const emsoMatches = [...currentPdfText.matchAll(/Emšo:\s*([\d\*]+)(?=\s*\osebno)/gi)];
-      const emsoValues = emsoMatches.map(match => match[1]);
-      setAllEmso(emsoValues);
-      
-      const priimekImeMatch = [...currentPdfText.match(/osebno ime:\s*([\s\S]+?)(?=\s*naslov:)/gi)];
-      if (priimekImeMatch) {
+
+      //REGEX ZA PRVI EXCEL ZVEZEK
+      let searchText = currentPdfText;
+      const podatkiIndex = currentPdfText.indexOf("Podrobni podatki o izvedenih pravicah in zaznambah:");
+      if (podatkiIndex !== -1) {
+        searchText = currentPdfText.substring(0, podatkiIndex);
+      }
+      //EMŠO IN MATIČNA (MATIC?)
+      const emsoRegex = /Emšo:\s*(.*?)\s*osebno/gi;
+      const emsoMatches = [...searchText.matchAll(emsoRegex)];
+      console.log("EMSO matches:", emsoMatches); // Log raw matches
+      let emsoValues = [];
+      if (emsoMatches.length === 0) {
+        emsoValues.push("ni emša");
+      } else {
+        emsoValues = emsoMatches.map(match => match[1].trim());
+      }
+      console.log("Extracted EMSO Values:", emsoValues);
+
+      // Matična številka regex match
+      const maticnaRegex = /matična številka:\s*(.*?)\s*firma/gi;
+      const maticnaMatches = [...searchText.matchAll(maticnaRegex)];
+      console.log("Matična matches:", maticnaMatches); // Log raw matches
+      let maticnaValues = [1];
+      if (maticnaMatches.length === 0) {
+        console.log("ni matišne številke");
+      } else {
+        maticnaValues = maticnaMatches.map(match => match[1].trim());
+      }
+      console.log("Matična Values:", maticnaValues);
+
+      // Combine EMSO and Matična values
+      let matcInEmsoValues = [...emsoValues, ...maticnaValues];
+      console.log("Combined EMSO and Matična Values:", matcInEmsoValues);
+
+      // Set the combined values to state
+      setAllEmso(matcInEmsoValues);
+
+      //IME
+      const priimekImeRegex = /osebno ime:\s*([\s\S]+?)(?=\s*naslov:)/gi;
+      const priimekImeMatch = [...searchText.match(priimekImeRegex)];
+      if (priimekImeMatch && priimekImeMatch.length > 0) {
         const priimekImeMatchValues = priimekImeMatch.map(match => match.replace('osebno ime:', '').trim());
         setPriimekIme(priimekImeMatchValues);
       } else {
-        console.log("No match found.");
+        console.log("No priimek/ime match found.");
+      }
+      //NASLOV
+      const naslovMatches = [];
+      const naslovRegex = /naslov:\s*([^]*?)(?=\s+(?:\d+\/\d+|omejitve:|zveza|ID|$)|\n)/gi;
+      let naslovMatch;
+      while ((naslovMatch = naslovRegex.exec(searchText)) !== null) {
+        if (naslovRegex.lastIndex <= naslovMatch.index) {
+          naslovRegex.lastIndex = naslovMatch.index + 1;
+          continue;
+        }
+        const address = naslovMatch[1].trim();
+        if (!address) {
+          naslovMatches.push("ni naslova");
+        } else if (address.length > 100) {
+          naslovMatches.push("ni naslova");
+        } else {
+          naslovMatches.push(address);
+        }
+      }
+      console.log("Extracted addresses:", naslovMatches);
+      setNaslov(naslovMatches);
+      //DELEŽ
+      const delezRegex = /delež:\s*(.*?)\s*imetnik/gi;
+      const delezMatch = [...searchText.match(delezRegex)];
+      if (delezMatch && delezMatch.length > 0) {
+        const delezValues = delezMatch.map(match => match.replace('delež:', '').trim());
+        setDelez(delezValues);
+      } else {
+        console.log("ni deleža");
       }
 
-      const naslovMatch = [...currentPdfText.match(/naslov:\s*([\s\S]*\s*(?:\d+\/\d+|omejitve)[^,]*)/i)];
-      console.log("Raw match:", naslovMatch);  // Check what match is returned
-
-      // Extract the value from the match
-      const naslovValue = naslovMatch.map(match => match[1]);
-      console.log("Naslov extracted:", naslovValue);
-
-      // Ensure the state is updated correctly
-      setNaslov(naslovValue);
-
-      const maticnaMatches = [...currentPdfText.matchAll()]
-      
-
+      // const maticnaMatches = [...currentPdfText.match()]
     }
   }, [extractedTexts, extractingData, index]);
 
@@ -118,7 +171,6 @@ function Forms({ index = 0 }) {
     <div className="forms">
       <div>Extracted Number: {lastnikState.sifra ? lastnikState.sifra : "/"}</div>
       <div>parcela: {lastnikState.parcela ? lastnikState.parcela : "/"}</div>
-      <div>All EMŠO Values:</div>
       <ul>
         {allEmso.length > 0 ? allEmso.map((emso, idx) => (
           <li key={idx}>{emso}</li>
@@ -129,9 +181,14 @@ function Forms({ index = 0 }) {
           <li key={idx}>{ime}</li>
         )) : <li>ni nobenga imena</li>}
       </ul>
-      
       <ul>
         {naslov.length > 0 ? naslov.map((ime, idx) => (
+          <li key={idx}>{ime}</li>
+        )) : <li>ni nobenga naslova</li>}
+      </ul>
+      
+      <ul>
+        {delez.length > 0 ? delez.map((ime, idx) => (
           <li key={idx}>{ime}</li>
         )) : <li>ni nobenga naslova</li>}
       </ul>
