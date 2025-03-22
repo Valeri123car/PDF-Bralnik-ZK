@@ -96,34 +96,23 @@ function Forms({ index = 0 }) {
       //EMŠO IN MATIČNA (MATIC?)
       const emsoRegex = /Emšo:\s*(.*?)\s*osebno/gi;
       const emsoMatches = [...searchText.matchAll(emsoRegex)];
-      console.log("EMSO matches:", emsoMatches); // Log raw matches
+      //console.log("EMSO matches:", emsoMatches); 
       let emsoValues = [];
       if (emsoMatches.length === 0) {
         emsoValues.push("ni emša");
       } else {
         emsoValues = emsoMatches.map(match => match[1].trim());
       }
-      console.log("Extracted EMSO Values:", emsoValues);
-
-      // Matična številka regex match
       const maticnaRegex = /matična številka:\s*(.*?)\s*firma/gi;
       const maticnaMatches = [...searchText.matchAll(maticnaRegex)];
-      console.log("Matična matches:", maticnaMatches); // Log raw matches
       let maticnaValues = [1];
       if (maticnaMatches.length === 0) {
         console.log("ni matišne številke");
       } else {
         maticnaValues = maticnaMatches.map(match => match[1].trim());
       }
-      console.log("Matična Values:", maticnaValues);
-
-      // Combine EMSO and Matična values
       let matcInEmsoValues = [...emsoValues, ...maticnaValues];
-      console.log("Combined EMSO and Matična Values:", matcInEmsoValues);
-
-      // Set the combined values to state
       setAllEmso(matcInEmsoValues);
-
       //IME
       const priimekImeRegex = /osebno ime:\s*([\s\S]+?)(?=\s*naslov:)/gi;
       const priimekImeMatch = [...searchText.match(priimekImeRegex)];
@@ -162,8 +151,6 @@ function Forms({ index = 0 }) {
       } else {
         console.log("ni deleža");
       }
-
-      // const maticnaMatches = [...currentPdfText.match()]
     }
   }, [extractedTexts, extractingData, index]);
 
