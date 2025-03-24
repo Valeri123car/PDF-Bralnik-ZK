@@ -117,19 +117,12 @@ button:hover {
   background-color: rgb(98, 98, 98);
   justify-content: space-evenly;
   overflow-y: auto;
+  overflow-x: auto;
 }
 
-.forms-box {
-  margin: 1rem;
-  padding: 0.5rem;
+.form-box {
   display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  border-style: solid;
-  border-width: 2px;
-  width: 12%;
-  overflow-y: auto;
-  overflow-x: auto;
+  flex-direction: row;
 }
 
 .popUpOkno {
