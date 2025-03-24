@@ -298,7 +298,13 @@ function Forms({ index = 0 }) {
       const maticnaStevilkaSlRegex = /matična\s*številka:\s*(\d+)(?=\s*)/g
       //firma naziv 
       const firmaNazivSlRegex = /firma\s*\/\s*naziv:\s*(.*)(?=\s*)/g
-      //opis
+      //
+      const opisRegex = /dodatni opis:\s*([\s\S]*?)\s*imetnik:/g
+      const opisMatches = [...stringOut.matchAll(opisRegex)];
+      if (opisMatches && opisMatches.length>=0){
+        const opisValues = opisMatches.map(match=>match[1].trim());
+        setOpis(opisValues)
+      }
     }
   }, [extractedTexts, extractingData, index]);
 
