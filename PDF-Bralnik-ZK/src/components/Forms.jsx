@@ -253,10 +253,16 @@ function Forms({ index = 0 }) {
         console.log("ni odločitve");
       }
       //REGEX ZA SLUŽNOSTI
-      const prvaPozicija = "Podrobni podatki o pravici / zaznambi pri izvedeni pravici / zaznambah:";
-      const searchIndex = currentPdfText.indexOf(prvaPozicija)
-      const stringOut = currentPdfText.substr(searchIndex + prvaPozicija.length)
-      console.log(stringOut)
+      let stringOut = "";  // Definiraj stringOut na višji ravni
+      const prvaPozicija = "Podrobni podatki o izvedenih pravicah in zaznambah:"; 
+      const searchIndex = currentPdfText.indexOf(prvaPozicija); 
+      if (searchIndex !== -1) {
+        stringOut = currentPdfText.slice(searchIndex + prvaPozicija.length).trim();
+      } else {
+        console.log("Iskani niz ni bil najden.");
+      }
+        console.log("TO JE STRING:", stringOut);  
+
       //id pravice
       const idPraviceRegex = /ID\s*pravice\s*\/\s*zaznambe\s*(\d+)/gi;
       const idPraviceMatches = [...stringOut.matchAll(idPraviceRegex)];
@@ -286,19 +292,99 @@ function Forms({ index = 0 }) {
         setUcinDatum(datumValue);
         setUcinaUra(uraValue);
       }
-      //imetnik
-      const imetnikCounterRegex = /imetnik:\s*(\d+.)\s/gi //possibly good for identfying če je več imetnikov ali pa ne
-      //ime
-      const osebnoImeRegex = /osebno\s*ime:\s*(.*)(?=\s*|\n|naslov:)/g 
-      //naslov
-      const naslovSlRegex = /naslov:\s(.*)(?=,)/g
-      //posta
-      const naslovSlPostaRegex = /naslov:\s(.*)(\s*,)\s*(\d+)(?=\s*)/g //here it will be i think match[3] because i think match[2] is just ","
-      //matična številka (if it is pravna oseba)
-      const maticnaStevilkaSlRegex = /matična\s*številka:\s*(\d+)(?=\s*)/g
-      //firma naziv 
-      const firmaNazivSlRegex = /firma\s*\/\s*naziv:\s*(.*)(?=\s*)/g
-      //
+
+      function extractImetnikData(stringOut) {
+        // Comprehensive regex to capture individual imetniki, including multiple entries
+        const imetnikRegex = /imetnik:\s*(\d+\.)\s*(.*?)(?=imetnik:\s*\d+\.|$)/gs;
+        
+        const imetniki = [];
+        let match;
+        
+        // Find all imetniki sections
+        while ((match = imetnikRegex.exec(stringOut)) !== null) {
+          const imetnikSection = match[2];
+          const imetnikData = {
+            redSt: match[1].replace('.', ''),
+            maticnaStevilka: null,
+            firmaNaziv: null,
+            emso: [],
+            osebnoIme: [],
+            naslov: [],
+            posta: [],
+          };
+          
+          // Regex for specific information extraction
+          const maticnaStevilkaRegex = /matična\s*številka:\s*(\d+)/;
+          const firmaRegex = /firma\s*\/\s*naziv:\s*(.+?)(?=\s*naslov:|$)/;
+          const emsoRegex = /EMŠO:\s*(\d+[^\s]*)/g;  // Adjusted to match all EMŠO entries
+          const osebnoImeRegex = /osebno\s*ime:\s*(.+?)(?=\s*naslov:|$)/g;  // Adjusted to match all osebnoIme
+          const naslovRegex = /naslov:\s*([^,]+),\s*(\d+)\s*(.*?)(?=\s*$|\n|EMŠO:|osebno\s*ime:|\d+\.)/s;
+      
+          // Extract matična številka (for pravna oseba)
+          const maticnaMatch = imetnikSection.match(maticnaStevilkaRegex);
+          if (maticnaMatch) imetnikData.maticnaStevilka = maticnaMatch[1];
+          
+          // Extract firma/naziv (for pravna oseba)
+          const firmaMatch = imetnikSection.match(firmaRegex);
+          if (firmaMatch) imetnikData.firmaNaziv = firmaMatch[1].trim();
+          
+          // Extract all EMŠO values (for fizična oseba)
+          let emsoMatch;
+          while ((emsoMatch = emsoRegex.exec(imetnikSection)) !== null) {
+            imetnikData.emso.push(emsoMatch[1].trim());
+          }
+          
+          // Extract all osebno ime values (for fizična oseba)
+          let osebnoImeMatch;
+          while ((osebnoImeMatch = osebnoImeRegex.exec(imetnikSection)) !== null) {
+            imetnikData.osebnoIme.push(osebnoImeMatch[1].trim());
+          }
+          
+          // Extract naslov and posta for each osobnoIme (if any) and also for the firma (if any)
+          const naslovMatch = imetnikSection.match(naslovRegex);
+          if (naslovMatch) {
+            const naslov = naslovMatch[1].trim();
+            const postalCode = parseInt(naslovMatch[2], 10);
+            
+            // If there are osobnoIme entries, we assign the same address and postal code to each one
+            if (imetnikData.osebnoIme.length > 0) {
+              imetnikData.naslov = new Array(imetnikData.osebnoIme.length).fill(naslov);
+              imetnikData.posta = new Array(imetnikData.osebnoIme.length).fill(postalCode);
+            } else {
+              // If no osobnoIme, fill the values for the firmaNaziv
+              imetnikData.naslov.push(naslov);
+              imetnikData.posta.push(postalCode);
+            }
+          }
+      
+          // Final cleaning to remove any remaining unwanted text
+          Object.keys(imetnikData).forEach(key => {
+            if (typeof imetnikData[key] === 'string') {
+              imetnikData[key] = imetnikData[key].replace(/\s+/g, ' ').trim();
+            }
+          });
+      
+          // Add the imetnik data to the array
+          imetniki.push(imetnikData);
+        }
+      
+        return imetniki;
+      }
+      
+      // Example usage for handling multiple imetniki
+      function processImetniki(stringOut) {
+        const imetniki = extractImetnikData(stringOut);
+        
+        // Update state arrays (if using React)
+        setImetnikNaziv(imetniki.map(im => im.firmaNaziv || im.osebnoIme.join(', ') || ''));
+        setImetnikNaslov(imetniki.map(im => im.naslov || []));
+        setImetnikPosta(imetniki.map(im => im.posta || []));
+        
+        return imetniki;
+      }
+      
+      console.log(processImetniki(stringOut));
+      //opis
       const opisRegex = /dodatni opis:\s*([\s\S]*?)\s*imetnik:/g
       const opisMatches = [...stringOut.matchAll(opisRegex)];
       if (opisMatches && opisMatches.length>=0){
