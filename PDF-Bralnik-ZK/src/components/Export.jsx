@@ -37,11 +37,10 @@ function ExportToExcel() {
     imetnikPosta,
     opis
   } = usePdf();
-  
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
-  
+  console.log("TO SO PDF",pdfFiles)
   // Main export function
   const exportToExcel = () => {
     setIsExporting(true);
@@ -68,7 +67,7 @@ function ExportToExcel() {
       setSuccessMessage("Podatki so bili uspešno izvoženi.");
     } catch (err) {
       console.error("Napaka pri izvozu:", err);
-      setError(`Napaka pri izvozu: ${err.message}`);
+      setError(err.message);
     } finally {
       setIsExporting(false);
     }
