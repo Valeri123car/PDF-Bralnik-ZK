@@ -48,7 +48,7 @@ function Forms({ index = 0 }) {
     if (extractedTexts && extractedTexts.length > index && extractingData) {
       const currentPdfText = extractedTexts[index]?.text || "";
 
-      const sifraMatch = currentPdfText.match(/\(ID\s*(\d+)\)/);
+      const sifraMatch = currentPdfText.match(/\(ID\s*(\d+)\)/); //zamenjaj na katastrask občina d+
       if (sifraMatch) {
         const sifraValue = sifraMatch[1];
 
@@ -86,7 +86,7 @@ function Forms({ index = 0 }) {
       } else {
         console.log("Could not find both section markers, using full text");
       }
-      //EMŠO IN MATIČNA (MATIC?)
+      //EMŠO IN MATIČNA (MATIC?) //TULE ŠE DODAJ ZA MULTIPLE OSNOVNI PRAVNI POLOŽAJ KOT SEM NAREDU PRI LASTNIKU
       const emsoRegex = /(Emšo|EMŠO):\s*(\d+\*+)/gi;
       const emsoMatches = [...searchText.matchAll(emsoRegex)];
       let emsoValues = [];
