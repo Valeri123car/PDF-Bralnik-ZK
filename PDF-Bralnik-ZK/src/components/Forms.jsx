@@ -3,67 +3,40 @@ import { usePdf } from "./PdfContext";
 import PopUp from "./Popout";
 
 function Forms({ index = 0 }) {
-  const { extractedTexts, extractingData, pdfFiles, formData, updateFormData } = usePdf();
-  
-  const [isPopUpVisible, setIsPopUpVisible] = useState(false);
-  const [popUpText, setPopUpText] = useState("");
-  
-  const [lastnikState, setLastnikState] = useState({
-    sifra:"",
-    parcela:"",
-    emso:"",
-    priimek_ime:"",
-    naslov:"",
-    pošta:"",
-    delez:""
-  });
-
-  const [sluznostiState, setSluznostiState] = useState({
-    sifra:"",
-    parcela:"",
-    id_pravice:"",
-    vrsta_pravice:"",
-    ucin_datum:"",
-    ucin_ura:"",
-    imetnik_naziv: "",
-    imetnik_naslov: "",
-    imetnik_posta: "",
-    opis: ""
-  });
-
-  const [plombe, setPlombeState] = useState({
-    sifra:"",
-    parcela:"",
-    zadeva_dn:"",
-    tip:"",
-    ucin_datum:"",
-    ucin_ura:"",
-    stanje:"",
-    nacin:""
-  });
-
-  const [allEmso, setAllEmso] = useState([]); 
-  const [maticna, setMaticna] = useState([]);
-  const [allPriimek_ime, setPriimekIme] = useState([]);
-  const [naslov, setNaslov] = useState([]);
-  const [posta, setPosta] = useState([]);
-  const [delez, setDelez] = useState([]);
-
-  const [zadevaDn,setZadevaDn] = useState([]);
-  const [tipPostopka, setTipPostopka] = useState([]);
-  const [casUcinDatum,setCasUcinDatum] = useState([]);
-  const [casUcinCas, setCasUcinCas] = useState([]);
-  const [stanjeZadeve, setStanjeZadeve] = useState([]);
-  const [nacinOd, setNacinOd] = useState([]);
-
-  const [idPravice, setIdIPravice] = useState([]);
-  const [vrstaPravice, setVrstaPravice] = useState([]);
-  const [ucinDatum, setUcinDatum] = useState([]);
-  const [ucinUra,setUcinaUra] = useState([]);
-  const [imetnikNaziv,setImetnikNaziv] = useState([]);
-  const [imetnikNaslov,setImetnikNaslov] = useState([]);
-  const [imetnikPosta,setImetnikPosta] = useState([]);
-  const [opis,setOpis] = useState([]);
+  const { 
+    extractedTexts, 
+    extractingData, 
+    pdfFiles, 
+    formData, 
+    updateFormData,
+    
+    lastnikState, setLastnikState,
+    sluznostiState, setSluznostiState,
+    plombe, setPlombeState,
+    
+    allEmso, setAllEmso,
+    maticna, setMaticna,
+    allPriimek_ime, setPriimekIme,
+    naslov, setNaslov,
+    posta, setPosta,
+    delez, setDelez,
+    
+    zadevaDn, setZadevaDn,
+    tipPostopka, setTipPostopka,
+    casUcinDatum, setCasUcinDatum,
+    casUcinCas, setCasUcinCas,
+    stanjeZadeve, setStanjeZadeve,
+    nacinOd, setNacinOd,
+    
+    idPravice, setIdIPravice,
+    vrstaPravice, setVrstaPravice,
+    ucinDatum, setUcinDatum,
+    ucinUra, setUcinaUra,
+    imetnikNaziv, setImetnikNaziv,
+    imetnikNaslov, setImetnikNaslov,
+    imetnikPosta, setImetnikPosta,
+    opis, setOpis
+  } = usePdf();
 
   useEffect(() => {
     if (formData && formData[index]) {
@@ -316,8 +289,8 @@ function Forms({ index = 0 }) {
           // Regex for specific information extraction
           const maticnaStevilkaRegex = /matična\s*številka:\s*(\d+)/;
           const firmaRegex = /firma\s*\/\s*naziv:\s*(.+?)(?=\s*naslov:|$)/;
-          const emsoRegex = /EMŠO:\s*(\d+[^\s]*)/g;  // Adjusted to match all EMŠO entries
-          const osebnoImeRegex = /osebno\s*ime:\s*(.+?)(?=\s*naslov:|$)/g;  // Adjusted to match all osebnoIme
+          const emsoRegex = /EMŠO:\s*(\d+[^\s]*)/g;  
+          const osebnoImeRegex = /osebno\s*ime:\s*(.+?)(?=\s*naslov:|$)/g;  
           const naslovRegex = /naslov:\s*([^,]+),\s*(\d+)\s*(.*?)(?=\s*$|\n|EMŠO:|osebno\s*ime:|\d+\.)/s;
       
           // Extract matična številka (for pravna oseba)
