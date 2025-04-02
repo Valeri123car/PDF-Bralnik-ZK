@@ -32,11 +32,18 @@
       "node_modules/**/*",
       "package.json"
     ],
+    "nsis":{
+      "uninstallDisplayName": "Uninstall this app.",
+      "license": "licence.txt",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
     "win": {
       "target": "nsis"
     }
   },
   "dependencies": {
+    "file-saver": "^2.0.5",
     "pdfjs-dist": "^4.10.38",
     "react-modal": "^3.16.3",
     "react-pdf": "^9.2.1",

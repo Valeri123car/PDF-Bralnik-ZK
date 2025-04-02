@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { usePdf } from "./PdfContext";
-import PopUp from "./Popout";
 
 function Forms({ index = 0 }) {
   const { 
@@ -8,35 +7,20 @@ function Forms({ index = 0 }) {
     extractingData, 
     pdfFiles, 
     formData, 
-    updateFormData,
-    
-    lastnikState, setLastnikState,
-    sluznostiState, setSluznostiState,
-    plombe, setPlombeState,
-    
-    allEmso, setAllEmso,
-    maticna, setMaticna,
-    allPriimek_ime, setPriimekIme,
-    naslov, setNaslov,
-    posta, setPosta,
-    delez, setDelez,
-    
-    zadevaDn, setZadevaDn,
-    tipPostopka, setTipPostopka,
-    casUcinDatum, setCasUcinDatum,
-    casUcinCas, setCasUcinCas,
-    stanjeZadeve, setStanjeZadeve,
-    nacinOd, setNacinOd,
-    
-    idPravice, setIdIPravice,
-    vrstaPravice, setVrstaPravice,
-    ucinDatum, setUcinDatum,
-    ucinUra, setUcinaUra,
-    imetnikNaziv, setImetnikNaziv,
-    imetnikNaslov, setImetnikNaslov,
-    imetnikPosta, setImetnikPosta,
-    opis, setOpis
+    extractedDataByPdf, setExtractedDataByPdf,
+    currentPdfIndex, setCurrentPdfIndex
   } = usePdf();
+
+  const updateExtractedDataForPdf = (pdfIndex, data) => {
+    setExtractedDataByPdf(prevData => {
+      const newData = [...prevData];
+      if (!newData[pdfIndex]) {
+        newData[pdfIndex] = {};
+      }
+      newData[pdfIndex] = {...newData[pdfIndex], ...data};
+      return newData;
+    });
+  };
 
   useEffect(() => {
     if (formData && formData[index]) {
@@ -47,35 +31,45 @@ function Forms({ index = 0 }) {
   useEffect(() => {
     if (extractedTexts && extractedTexts.length > index && extractingData) {
       const currentPdfText = extractedTexts[index]?.text || "";
+      setCurrentPdfIndex(index);
 
-      const sifraMatch = currentPdfText.match(/\(ID\s*(\d+)\)/); //zamenjaj na katastrask občina d+
+      const pdfData = {
+        sifra: "",
+        parcela: "",
+        emso: [],
+        maticna: [],
+        priimek_ime: [],
+        naslov: [],
+        posta: [],
+        delez: [],
+        zadevaDn: [],
+        tipPostopka: [],
+        casUcinDatum: [],
+        casUcinCas: [],
+        stanjeZadeve: [],
+        nacinOd: [],
+        idPravice: [],
+        vrstaPravice: [],
+        ucinDatum: [],
+        ucinUra: [],
+        imetnikNaziv: [],
+        imetnikNaslov: [],
+        imetnikPosta: [],
+        opis: []
+      };
+
+      const sifraMatch = currentPdfText.match(/katastrska\s*občina\s*(\d+)/); //zamenjaj na katastrask občina d+
       if (sifraMatch) {
         const sifraValue = sifraMatch[1];
-
-        setLastnikState(prevState => ({
-          ...prevState,
-          sifra: sifraValue
-        }));
-
-        setSluznostiState(prevState => ({
-          ...prevState,
-          sifra: sifraValue
-        }));
-
-        setPlombeState(prevState => ({
-          ...prevState,
-          sifra: sifraValue
-        }));
+        pdfData.sifra = sifraValue;
       }
 
       const parcelaMatch = currentPdfText.match(/parcela\s*([\d\/]+)(?=\s*\(ID)/i);
       if (parcelaMatch) {
         const parcelaValue = parcelaMatch[1];  
-        setLastnikState(prevState => ({
-          ...prevState,
-          parcela: parcelaValue
-        }));
+        pdfData.parcela = parcelaValue;
       }
+      
       //REGEX ZA LASTNIKE
       const osnovniPosition = currentPdfText.indexOf("Osnovni pravni položaj nepremičnine:");
       const podatkiIndex = currentPdfText.indexOf("Podrobni podatki o izvedenih pravicah in zaznambah:");
@@ -86,37 +80,59 @@ function Forms({ index = 0 }) {
       } else {
         console.log("Could not find both section markers, using full text");
       }
-      //EMŠO IN MATIČNA (MATIC?) //TULE ŠE DODAJ ZA MULTIPLE OSNOVNI PRAVNI POLOŽAJ KOT SEM NAREDU PRI LASTNIKU
-      const emsoRegex = /(Emšo|EMŠO):\s*(\d+\*+)/gi;
-      const emsoMatches = [...searchText.matchAll(emsoRegex)];
-      let emsoValues = [];
-      if (emsoMatches.length === 0) {
-        emsoValues.push("ni emša");
-      } else {
-        emsoValues = emsoMatches.map(match => match[2].trim());
-      }
-      const maticnaRegex = /matična številka:\s*(.*?)\s*firma/gi;
-      const maticnaMatches = [...searchText.matchAll(maticnaRegex)];
-      let maticnaValues = [];
-      if (maticnaMatches.length === 0) {
-        console.log("ni matišne številke");
-      } else {
-        maticnaValues = maticnaMatches.map(match => match[1].trim());
-      }
       
-      let matcInEmsoValues = [...emsoValues, ...maticnaValues];
-      setAllEmso(matcInEmsoValues);
+      //EMŠO IN MATIČNA (MATIC?)
+      const emsoAllTypesRegex = /(Emšo|EMŠO):\s*((?:\d+\*+)|(?:podatek\s+ni\s+vpisan)|(?:\d+))/gi;
+      //FIKSAJ EMŠO DA SE LAHKO PONOVI KEJ PO DVAKRAT!
+      pdfData.emso = [];
+
+      let foundMatch = false;
+      const matches = [...searchText.matchAll(emsoAllTypesRegex)];
+      console.log("ALL MATCHES:", matches);
+
+      if (matches && matches.length > 0) {
+        for (const match of matches) {
+          const value = match[2].trim();
+          if (value.includes("podatek ni vpisan")) {
+            pdfData.emso.push("podatek ni vpisan");
+          } else {
+            pdfData.emso.push(value);
+          }
+          foundMatch = true;
+        }
+      }
+
+      if (!foundMatch) {
+        const maticnaRegex = /matična številka:\s*(.*?)(?:\s*firma|$)/gi;
+        const maticnaMatches = [...searchText.matchAll(maticnaRegex)];
+        
+        if (maticnaMatches && maticnaMatches.length > 0) {
+          for (const match of maticnaMatches) {
+            pdfData.emso.push(match[1].trim());
+            foundMatch = true;
+          }
+        }
+      }
+
+      if (!foundMatch || pdfData.emso.length === 0) {
+        pdfData.emso = ["ni identifikacijske številke"]; 
+      }
+      console.log("FINAL EMSO:", pdfData.emso);      
       //IME
       const priimekImeRegex = /osebno ime:\s*([\s\S]+?)(?=\s*naslov:|\d+\/\d+)/gi;
+      const firmaNazivRegex = /firma\s*\/\s*naziv:\s*(.+?)(?=\s*naslov:|$)/g;
       const priimekImeMatches = [...searchText.matchAll(priimekImeRegex)];
+      const firmaNazivMatches = [...searchText.matchAll(firmaNazivRegex)];
+      // Merge both name types under priimek_ime
       if (priimekImeMatches && priimekImeMatches.length > 0) {
-        const priimekImeMatchValues = priimekImeMatches.map(match => match[1].trim());
-        setPriimekIme(priimekImeMatchValues);
+        pdfData.priimek_ime = priimekImeMatches.map(match => match[1].trim());
+      } else if (firmaNazivMatches && firmaNazivMatches.length > 0) {
+        pdfData.priimek_ime = firmaNazivMatches.map(match => match[1].trim());
       } else {
-        console.log("No priimek/ime match found.");
+        pdfData.priimek_ime = ["ni imena"];
       }
+
       //NASLOV
-      const naslovMatches = [];
       const naslovRegex = /naslov:\s*([^]*?)(?=\s+(?:\d+\/\d+|omejitve:|zveza|ID|$)|\n)/gi;
       let naslovMatch;
       while ((naslovMatch = naslovRegex.exec(searchText)) !== null) {
@@ -126,17 +142,15 @@ function Forms({ index = 0 }) {
         }
         const address = naslovMatch[1].trim();
         if (!address) {
-          naslovMatches.push("ni naslova");
+          pdfData.naslov.push("ni naslova");
         } else if (address.length > 100) {
-          naslovMatches.push("ni naslova");
+          pdfData.naslov.push("ni naslova");
         } else {
-          naslovMatches.push(address);
+          pdfData.naslov.push(address);
         }
       }
-      console.log("Extracted addresses:", naslovMatches);
-      setNaslov(naslovMatches);
+      
       //POSTA
-      const postaMatches = [];
       const postaRegex = /naslov:\s*(.*?,\s*)(\d+)(?=omejitve:|\d+\/\d+|(.*))/gi;
       let postaMatch;
       while ((postaMatch = postaRegex.exec(searchText)) !== null) {
@@ -146,328 +160,315 @@ function Forms({ index = 0 }) {
         }
         const posta = postaMatch[2].trim();
         if (!posta) {
-          postaMatches.push("ni pošte");
+          pdfData.posta.push("ni pošte");
         } else if (posta.length > 100) {
-          postaMatches.push("ni pošte");
+          pdfData.posta.push("ni pošte");
         } else {
-          postaMatches.push(posta);
+          pdfData.posta.push(posta);
         }
       }
-      console.log("vse poste:", postaMatches);
-      setPosta(postaMatches);
+      
       //DELEŽ
       const delezRegex = /delež:\s*(.*?)\s*(imetnik|\d+\/\d+)/gi;
       const delezMatches = [...searchText.matchAll(delezRegex)];
       if (delezMatches && delezMatches.length > 0) {
-        const delezValues = delezMatches.map(match => match[2].trim());
-        setDelez(delezValues);
-        console.log(delezValues)
-        console.log(delezMatches)
-      } else {
-        console.log("ni deleža");
+        pdfData.delez = delezMatches.map(match => match[2].trim());
       }
+      
       //REGEX ZA PLOMBE
-      //ZADEVA_DN
       const osnovniPositionPlombe = currentPdfText.indexOf("Plombe:");
       const podatkiIndexPlombe = currentPdfText.indexOf("Osnovni pravni položaj nepremičnine:");
       let searchTextPlombe = currentPdfText;
       if (osnovniPositionPlombe !== -1 && podatkiIndexPlombe !== -1 && osnovniPositionPlombe < podatkiIndexPlombe) {
         searchTextPlombe = currentPdfText.substring(osnovniPositionPlombe, podatkiIndexPlombe);
-        console.log("smo najdl");
-      } else {
-        console.log("nismo najdl");
       }
+      
       //zadeva Dn 
       const zadevaDnRegex = /zadeva\s+Dn\s+(\d+\/\d+)/gi;
       const zadevaDnMatches = [...searchTextPlombe.matchAll(zadevaDnRegex)];
       if (zadevaDnMatches && zadevaDnMatches.length > 0) {
-        const zadevaDnValues = zadevaDnMatches.map(match => match[1].trim());
-        setZadevaDn(zadevaDnValues);
-      } else {
-        console.log("ni zadeve");
+        pdfData.zadevaDn = zadevaDnMatches.map(match => match[1].trim());
       }
+      
       //tip postopka
       const tipPostopkaRegex = /tip\s*postopka\s+(.*)(?=stanje|(\d+\/\d+))/gi;
       const tipPostopaMatches = [...searchTextPlombe.matchAll(tipPostopkaRegex)];
       if (tipPostopaMatches && tipPostopaMatches.length > 0){
-        const tipPostopkaValues = zadevaDnMatches.map(match => match[1].trim());
-        setTipPostopka(tipPostopkaValues);
-      } else {
-        console.log("ni tip postpka")
+        pdfData.tipPostopka = tipPostopaMatches.map(match => match[1].trim());
       }
+      
       //čas učinkovanja
       const casUcinRegex = /čas\s+začetka\s*učinkovanja\s*(\d{2}.\d{2}.\d{4})\s*(\d+:\d+:\d+)/gi;
       const casUcinMatches = [...searchTextPlombe.matchAll(casUcinRegex)];
-      if (casUcinMatches && casUcinMatches.length>0){
-        const casUcinDatum = casUcinMatches.map(match => match[1].trim());
-        const casUcinCas = casUcinMatches.map(match => match[2].trim()); 
-        setCasUcinDatum(casUcinDatum);
-        setCasUcinCas(casUcinCas)
-      } else {
-        console.log("ni datuma al casa")
+      if (casUcinMatches && casUcinMatches.length > 0){
+        pdfData.casUcinDatum = casUcinMatches.map(match => match[1].trim());
+        pdfData.casUcinCas = casUcinMatches.map(match => match[2].trim()); 
       }
+      
       //stanje zadeve
       const stanjeZadeveRegex = /stanje\s+zadeve\s+(.*?)\s+(način|\d+\/\d+)/gi;
       const stanjeZadeveMatches = [...searchTextPlombe.matchAll(stanjeZadeveRegex)];
-      if (stanjeZadeveMatches && stanjeZadeveMatches.length>0){
-        const stanjeZadeveValues = stanjeZadeveMatches.map(match => match[1].trim());
-        setStanjeZadeve(stanjeZadeveValues)
-        console.log(stanjeZadeveValues)
-      } else {
-        console.log("nismo našl stanje zadeve");
-      };
+      if (stanjeZadeveMatches && stanjeZadeveMatches.length > 0){
+        pdfData.stanjeZadeve = stanjeZadeveMatches.map(match => match[1].trim());
+      }
+      
       //način odločitve
       const nacinOdlReg = /način\s+odločitve\s*o\s*vpisu:\s*(.*?)(?=\s*tip\s*pripada|\s*\d+\/\d+)/gi;
       const nacinOdMatches = [...searchTextPlombe.matchAll(nacinOdlReg)];
-      if (nacinOdMatches && nacinOdMatches.length>0){
-        const nacinOdValues = nacinOdMatches.map(match=>match[1].trim());
-        setNacinOd(nacinOdValues);
-      } else {
-        console.log("ni odločitve");
+      if (nacinOdMatches && nacinOdMatches.length > 0){
+        pdfData.nacinOd = nacinOdMatches.map(match => match[1].trim());
       }
+      
       //REGEX ZA SLUŽNOSTI
-      let stringOut = "";  // Definiraj stringOut na višji ravni
+      let stringOut = "";
       const prvaPozicija = "Podrobni podatki o izvedenih pravicah in zaznambah:"; 
       const searchIndex = currentPdfText.indexOf(prvaPozicija); 
       if (searchIndex !== -1) {
         stringOut = currentPdfText.slice(searchIndex + prvaPozicija.length).trim();
-      } else {
-        console.log("Iskani niz ni bil najden.");
       }
-        console.log("TO JE STRING:", stringOut);  
-
+      
       //id pravice
       const idPraviceRegex = /ID\s*pravice\s*\/\s*zaznambe\s*(\d+)/gi;
       const idPraviceMatches = [...stringOut.matchAll(idPraviceRegex)];
-      if (idPraviceMatches && idPraviceMatches.length>0){
-        const idPraviceValues = idPraviceMatches.map(match=>match[1].trim());
-        setIdIPravice(idPraviceValues);
-      } else {
-        console.log("nismo našl idPravice");
+      if (idPraviceMatches && idPraviceMatches.length > 0){
+        pdfData.idPravice = idPraviceMatches.map(match => match[1].trim());
       }
+      
       //vrsta pravice
       const vrstaPraviceRe = /vrsta\s*pravice\s*\/\s*zaznambe\s+(\d+\s*-\s*[^\n\r]+?)(?=\s*glavna|podatki|\s*\d+\/\d+)/gi;
       const vrstaPraviceMatches = [...stringOut.matchAll(vrstaPraviceRe)];
-      if(vrstaPraviceMatches && vrstaPraviceMatches.length>0){
-        const vrstaPraviceValues = vrstaPraviceMatches.map(match=>match[1].trim());
-        setVrstaPravice(vrstaPraviceValues)
-        console.log("TO SO MATCHES",vrstaPraviceMatches)
-      } else {
-        console.log("ni Vrstepravice")
+      if(vrstaPraviceMatches && vrstaPraviceMatches.length > 0){
+        pdfData.vrstaPravice = vrstaPraviceMatches.map(match => match[1].trim());
       }
+      
       //ucin datum in ura
       const datumUraRegex = /čas\s*začetka\s*učinkovanja\s*(\d{2}.\d{2}.\d{4})\s*(\d*:\d*:\d*)/gi;
       const datumUraMatches = [...stringOut.matchAll(datumUraRegex)];
-      if (datumUraMatches && datumUraMatches.length>0){
-        const datumValue = datumUraMatches.map(match=>match[1].trim());
-        const uraValue = datumUraMatches.map(match=>match[2].trim());
-        console.log(datumUraMatches)
-        setUcinDatum(datumValue);
-        setUcinaUra(uraValue);
+      if (datumUraMatches && datumUraMatches.length > 0){
+        pdfData.ucinDatum = datumUraMatches.map(match => match[1].trim());
+        pdfData.ucinUra = datumUraMatches.map(match => match[2].trim());
       }
 
-      function extractImetnikData(stringOut) {
-        // Comprehensive regex to capture individual imetniki, including multiple entries
-        const imetnikRegex = /imetnik:\s*(\d+\.)\s*(.*?)(?=imetnik:\s*\d+\.|$)/gs;
-        
-        const imetniki = [];
-        let match;
-        
-        // Find all imetniki sections
-        while ((match = imetnikRegex.exec(stringOut)) !== null) {
-          const imetnikSection = match[2];
-          const imetnikData = {
-            redSt: match[1].replace('.', ''),
-            maticnaStevilka: null,
-            firmaNaziv: null,
-            emso: [],
-            osebnoIme: [],
-            naslov: [],
-            posta: [],
-          };
-          
-          // Regex for specific information extraction
-          const maticnaStevilkaRegex = /matična\s*številka:\s*(\d+)/;
-          const firmaRegex = /firma\s*\/\s*naziv:\s*(.+?)(?=\s*naslov:|$)/;
-          const emsoRegex = /EMŠO:\s*(\d+[^\s]*)/g;  
-          const osebnoImeRegex = /osebno\s*ime:\s*(.+?)(?=\s*naslov:|$)/g;  
-          const naslovRegex = /naslov:\s*([^,]+),\s*(\d+)\s*(.*?)(?=\s*$|\n|EMŠO:|osebno\s*ime:|\d+\.)/s;
+      // Extract imetnik data
+      const imetniki = extractImetnikData(stringOut);
+      pdfData.imetnikNaziv = imetniki.map(im => im.firmaNaziv || im.osebnoIme.join(', ') || '');
+      pdfData.imetnikNaslov = imetniki.map(im => im.naslov || []);
+      pdfData.imetnikPosta = imetniki.map(im => im.posta || []);
       
-          // Extract matična številka (for pravna oseba)
-          const maticnaMatch = imetnikSection.match(maticnaStevilkaRegex);
-          if (maticnaMatch) imetnikData.maticnaStevilka = maticnaMatch[1];
-          
-          // Extract firma/naziv (for pravna oseba)
-          const firmaMatch = imetnikSection.match(firmaRegex);
-          if (firmaMatch) imetnikData.firmaNaziv = firmaMatch[1].trim();
-          
-          // Extract all EMŠO values (for fizična oseba)
-          let emsoMatch;
-          while ((emsoMatch = emsoRegex.exec(imetnikSection)) !== null) {
-            imetnikData.emso.push(emsoMatch[1].trim());
-          }
-          
-          // Extract all osebno ime values (for fizična oseba)
-          let osebnoImeMatch;
-          while ((osebnoImeMatch = osebnoImeRegex.exec(imetnikSection)) !== null) {
-            imetnikData.osebnoIme.push(osebnoImeMatch[1].trim());
-          }
-          
-          // Extract naslov and posta for each osobnoIme (if any) and also for the firma (if any)
-          const naslovMatch = imetnikSection.match(naslovRegex);
-          if (naslovMatch) {
-            const naslov = naslovMatch[1].trim();
-            const postalCode = parseInt(naslovMatch[2], 10);
-            
-            // If there are osobnoIme entries, we assign the same address and postal code to each one
-            if (imetnikData.osebnoIme.length > 0) {
-              imetnikData.naslov = new Array(imetnikData.osebnoIme.length).fill(naslov);
-              imetnikData.posta = new Array(imetnikData.osebnoIme.length).fill(postalCode);
-            } else {
-              // If no osobnoIme, fill the values for the firmaNaziv
-              imetnikData.naslov.push(naslov);
-              imetnikData.posta.push(postalCode);
-            }
-          }
-      
-          // Final cleaning to remove any remaining unwanted text
-          Object.keys(imetnikData).forEach(key => {
-            if (typeof imetnikData[key] === 'string') {
-              imetnikData[key] = imetnikData[key].replace(/\s+/g, ' ').trim();
-            }
-          });
-      
-          // Add the imetnik data to the array
-          imetniki.push(imetnikData);
-        }
-      
-        return imetniki;
-      }
-      
-      // Example usage for handling multiple imetniki
-      function processImetniki(stringOut) {
-        const imetniki = extractImetnikData(stringOut);
-        
-        // Update state arrays (if using React)
-        setImetnikNaziv(imetniki.map(im => im.firmaNaziv || im.osebnoIme.join(', ') || ''));
-        setImetnikNaslov(imetniki.map(im => im.naslov || []));
-        setImetnikPosta(imetniki.map(im => im.posta || []));
-        
-        return imetniki;
-      }
-      
-      console.log(processImetniki(stringOut));
       //opis
-      const opisRegex = /dodatni opis:\s*([\s\S]*?)\s*imetnik:/g
+      const opisRegex = /dodatni opis:\s*([\s\S]*?)\s*imetnik:/g;
       const opisMatches = [...stringOut.matchAll(opisRegex)];
-      if (opisMatches && opisMatches.length>=0){
-        const opisValues = opisMatches.map(match=>match[1].trim());
-        setOpis(opisValues)
+      if (opisMatches && opisMatches.length > 0){
+        pdfData.opis = opisMatches.map(match => match[1].trim());
       }
+      updateExtractedDataForPdf(index, pdfData);
     }
   }, [extractedTexts, extractingData, index]);
 
+  function extractImetnikData(stringOut) {
+    const imetnikRegex = /imetnik:\s*(\d+\.)\s*(.*?)(?=imetnik:\s*\d+\.|$)/gs;
+    
+    const imetniki = [];
+    let match;
+    
+    while ((match = imetnikRegex.exec(stringOut)) !== null) {
+      const imetnikSection = match[2];
+      const imetnikData = {
+        redSt: match[1].replace('.', ''),
+        maticnaStevilka: null,
+        firmaNaziv: null,
+        emso: [],
+        osebnoIme: [],
+        naslov: [],
+        posta: [],
+      };
+  
+      const maticnaStevilkaRegex = /matična\s*številka:\s*(\d+)/;
+      const firmaRegex = /firma\s*\/\s*naziv:\s*(.+?)(?=\s*naslov:|$)/;
+      const emsoRegex = /EMŠO:\s*(\d+[^\s]*)/g;  
+      const osebnoImeRegex = /osebno\s*ime:\s*(.+?)(?=\s*naslov:|$)/g;  
+      const naslovRegex = /naslov:\s*([^,]+),\s*(\d+)\s*(.*?)(?=\s*$|\n|EMŠO:|osebno\s*ime:|\d+\.)/s;
+
+      const maticnaMatch = imetnikSection.match(maticnaStevilkaRegex);
+      if (maticnaMatch) imetnikData.maticnaStevilka = maticnaMatch[1];
+      
+      const firmaMatch = imetnikSection.match(firmaRegex);
+      if (firmaMatch) imetnikData.firmaNaziv = firmaMatch[1].trim();
+      
+      let emsoMatch;
+      while ((emsoMatch = emsoRegex.exec(imetnikSection)) !== null) {
+        imetnikData.emso.push(emsoMatch[1].trim());
+      }
+      
+      let osebnoImeMatch;
+      while ((osebnoImeMatch = osebnoImeRegex.exec(imetnikSection)) !== null) {
+        imetnikData.osebnoIme.push(osebnoImeMatch[1].trim());
+      }
+      const naslovMatch = imetnikSection.match(naslovRegex);
+      if (naslovMatch) {
+        const naslov = naslovMatch[1].trim();
+        const postalCode = parseInt(naslovMatch[2], 10);
+        
+        if (imetnikData.osebnoIme.length > 0) {
+          imetnikData.naslov = new Array(imetnikData.osebnoIme.length).fill(naslov);
+          imetnikData.posta = new Array(imetnikData.osebnoIme.length).fill(postalCode);
+        } else {
+          imetnikData.naslov.push(naslov);
+          imetnikData.posta.push(postalCode);
+        }
+      }
+
+      Object.keys(imetnikData).forEach(key => {
+        if (typeof imetnikData[key] === 'string') {
+          imetnikData[key] = imetnikData[key].replace(/\s+/g, ' ').trim();
+        }
+      });
+      imetniki.push(imetnikData);
+    }
+  
+    return imetniki;
+  }
+  const currentPdfData = extractedDataByPdf[index] || {};
+
   return (
     <div className="forms">
-      <div>ID: {lastnikState.sifra ? lastnikState.sifra : "/"}</div>
-      <div>parcela: {lastnikState.parcela ? lastnikState.parcela : "/"}</div>
+      <h3>PDF #{index + 1} Data</h3>
+      <div>ID: {currentPdfData.sifra || "/"}</div>
+      <div>parcela: {currentPdfData.parcela || "/"}</div>
+      
+      <h4>EMŠO:</h4>
       <ul>
-        {allEmso.length > 0 ? allEmso.map((emso, idx) => (
+        {currentPdfData.emso?.length > 0 ? currentPdfData.emso.map((emso, idx) => (
           <li key={idx}>{emso}</li>
         )) : <li>ni nobenga emša</li>}
       </ul>
+      
+      <h4>Ime in priimek:</h4>
       <ul>
-        {allPriimek_ime.length > 0 ? allPriimek_ime.map((ime, idx) => (
+        {currentPdfData.priimek_ime?.length > 0 ? currentPdfData.priimek_ime.map((ime, idx) => (
           <li key={idx}>{ime}</li>
         )) : <li>ni nobenga imena</li>}
       </ul>
+      
+      <h4>Naslov:</h4>
       <ul>
-        {naslov.length > 0 ? naslov.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.naslov?.length > 0 ? currentPdfData.naslov.map((n, idx) => (
+          <li key={idx}>{n}</li>
         )) : <li>ni nobenga naslova</li>}
       </ul>
       
+      <h4>Pošta:</h4>
       <ul>
-        {posta.length > 0 ? posta.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.posta?.length > 0 ? currentPdfData.posta.map((p, idx) => (
+          <li key={idx}>{p}</li>
         )) : <li>ni nobene poste</li>}
       </ul>
+      
+      <h4>Delež:</h4>
       <ul>
-        {delez.length > 0 ? delez.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.delez?.length > 0 ? currentPdfData.delez.map((d, idx) => (
+          <li key={idx}>{d}</li>
         )) : <li>ni nobenga deleza</li>}
       </ul>
+      
+      <h4>Zadeva Dn:</h4>
       <ul>
-        {zadevaDn.length > 0 ? zadevaDn.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.zadevaDn?.length > 0 ? currentPdfData.zadevaDn.map((z, idx) => (
+          <li key={idx}>{z}</li>
         )) : <li>ni nobene zadeve</li>}
       </ul>
+      
+      <h4>Tip postopka:</h4>
       <ul>
-        {tipPostopka.length > 0 ? tipPostopka.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
-        )) : <li>ni nobenga postopa</li>}
+        {currentPdfData.tipPostopka?.length > 0 ? currentPdfData.tipPostopka.map((t, idx) => (
+          <li key={idx}>{t}</li>
+        )) : <li>ni nobenga postopka</li>}
       </ul>
+      
+      <h4>Datum učinkovanja:</h4>
       <ul>
-        {casUcinDatum.length > 0 ? casUcinDatum.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.casUcinDatum?.length > 0 ? currentPdfData.casUcinDatum.map((d, idx) => (
+          <li key={idx}>{d}</li>
         )) : <li>ni nobenga datuma</li>}
       </ul>
+      
+      <h4>Čas učinkovanja:</h4>
       <ul>
-        {casUcinCas.length > 0 ? casUcinCas.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.casUcinCas?.length > 0 ? currentPdfData.casUcinCas.map((c, idx) => (
+          <li key={idx}>{c}</li>
         )) : <li>ni nobenga casa</li>}
       </ul>
+      
+      <h4>Stanje zadeve:</h4>
       <ul>
-        {stanjeZadeve.length > 0 ? stanjeZadeve.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.stanjeZadeve?.length > 0 ? currentPdfData.stanjeZadeve.map((s, idx) => (
+          <li key={idx}>{s}</li>
         )) : <li>ni nobene zadeve</li>}
       </ul>
+      
+      <h4>Način odločitve:</h4>
       <ul>
-        {nacinOd.length > 0 ? nacinOd.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.nacinOd?.length > 0 ? currentPdfData.nacinOd.map((n, idx) => (
+          <li key={idx}>{n}</li>
         )) : <li>ni nobene odl</li>}
       </ul>
+      
+      <h4>ID pravice:</h4>
       <ul>
-        {idPravice.length > 0 ? idPravice.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.idPravice?.length > 0 ? currentPdfData.idPravice.map((i, idx) => (
+          <li key={idx}>{i}</li>
         )) : <li>ni nobene idPravice</li>}
       </ul>
+      
+      <h4>Vrsta pravice:</h4>
       <ul>
-        {vrstaPravice.length > 0 ? vrstaPravice.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.vrstaPravice?.length > 0 ? currentPdfData.vrstaPravice.map((v, idx) => (
+          <li key={idx}>{v}</li>
         )) : <li>ni nobene vrsta pravice</li>}
       </ul>
+      
+      <h4>Datum učinkovanja (služnosti):</h4>
       <ul>
-        {ucinDatum.length > 0 ? ucinDatum.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.ucinDatum?.length > 0 ? currentPdfData.ucinDatum.map((d, idx) => (
+          <li key={idx}>{d}</li>
         )) : <li>ni nobenega datuma</li>}
       </ul>
+      
+      <h4>Ura učinkovanja:</h4>
       <ul>
-        {ucinUra.length > 0 ? ucinUra.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.ucinUra?.length > 0 ? currentPdfData.ucinUra.map((u, idx) => (
+          <li key={idx}>{u}</li>
         )) : <li>ni nobene ure</li>}
       </ul>
+      
+      <h4>Imetnik naziv:</h4>
       <ul>
-        {imetnikNaziv.length > 0 ? imetnikNaziv.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.imetnikNaziv?.length > 0 ? currentPdfData.imetnikNaziv.map((i, idx) => (
+          <li key={idx}>{i}</li>
         )) : <li>ni nobene imetnikNaziv</li>}
       </ul>
+      
+      <h4>Imetnik naslov:</h4>
       <ul>
-        {imetnikNaslov.length > 0 ? imetnikNaslov.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.imetnikNaslov?.length > 0 ? currentPdfData.imetnikNaslov.map((i, idx) => (
+          <li key={idx}>{i}</li>
         )) : <li>ni nobene imetnikNaslov</li>}
       </ul>
+      
+      <h4>Imetnik pošta:</h4>
       <ul>
-        {imetnikPosta.length > 0 ? imetnikPosta.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.imetnikPosta?.length > 0 ? currentPdfData.imetnikPosta.map((i, idx) => (
+          <li key={idx}>{i}</li>
         )) : <li>ni nobene imetnikPosta</li>}
       </ul>
+      
+      <h4>Opis:</h4>
       <ul>
-        {opis.length > 0 ? opis.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
+        {currentPdfData.opis?.length > 0 ? currentPdfData.opis.map((o, idx) => (
+          <li key={idx}>{o}</li>
         )) : <li>ni nobenega opisa</li>}
       </ul>
-      </div>
+    </div>
   );
 }
 
