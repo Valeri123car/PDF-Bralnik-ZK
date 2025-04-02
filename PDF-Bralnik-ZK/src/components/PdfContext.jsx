@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const PdfContext = createContext();
 
@@ -7,8 +7,9 @@ export const PdfProvider = ({ children }) => {
   const [extractedTexts, setExtractedTexts] = useState([]);
   const [extractingData, setExtractingData] = useState(false);
   const [formData, setFormData] = useState([]);
-  
-  // Add these states from Forms.jsx
+  const [extractedDataByPdf, setExtractedDataByPdf] = useState([]);
+  const [currentPdfIndex, setCurrentPdfIndex] = useState(0);
+
   const [lastnikState, setLastnikState] = useState({
     sifra: "",
     parcela: "",
@@ -16,7 +17,7 @@ export const PdfProvider = ({ children }) => {
     priimek_ime: "",
     naslov: "",
     pošta: "",
-    delez: ""
+    delez: "",
   });
 
   const [sluznostiState, setSluznostiState] = useState({
@@ -29,7 +30,7 @@ export const PdfProvider = ({ children }) => {
     imetnik_naziv: "",
     imetnik_naslov: "",
     imetnik_posta: "",
-    opis: ""
+    opis: "",
   });
 
   const [plombe, setPlombeState] = useState({
@@ -40,79 +41,122 @@ export const PdfProvider = ({ children }) => {
     ucin_datum: "",
     ucin_ura: "",
     stanje: "",
-    nacin: ""
+    nacin: "",
   });
 
-  // Add all the array states from Forms.jsx
   const [allEmso, setAllEmso] = useState([]);
   const [maticna, setMaticna] = useState([]);
   const [allPriimek_ime, setPriimekIme] = useState([]);
   const [naslov, setNaslov] = useState([]);
   const [posta, setPosta] = useState([]);
   const [delez, setDelez] = useState([]);
-  
+
   const [zadevaDn, setZadevaDn] = useState([]);
   const [tipPostopka, setTipPostopka] = useState([]);
   const [casUcinDatum, setCasUcinDatum] = useState([]);
   const [casUcinCas, setCasUcinCas] = useState([]);
   const [stanjeZadeve, setStanjeZadeve] = useState([]);
   const [nacinOd, setNacinOd] = useState([]);
-  
-  const [idPravice, setIdIPravice] = useState([]);
+
+  const [idPravice, setIdPravice] = useState([]);
   const [vrstaPravice, setVrstaPravice] = useState([]);
   const [ucinDatum, setUcinDatum] = useState([]);
-  const [ucinUra, setUcinaUra] = useState([]);
+  const [ucinUra, setUcinUra] = useState([]);
   const [imetnikNaziv, setImetnikNaziv] = useState([]);
   const [imetnikNaslov, setImetnikNaslov] = useState([]);
   const [imetnikPosta, setImetnikPosta] = useState([]);
   const [opis, setOpis] = useState([]);
-  
+  const string = "hello world"
+  // Log the states whenever they change
+  useEffect(() => {
+    console.log({
+      extractedDataByPdf
+    });
+  }, [
+    extractedDataByPdf
+  ]);
+
   const updateFormData = (index, data) => {
-    setFormData(prevForms => {
+    setFormData((prevForms) => {
       const newForms = [...prevForms];
-      if (!newForms[index]) {
-        newForms[index] = {};
-      }
-      newForms[index] = {...newForms[index], ...data};
+      newForms[index] = { ...newForms[index], ...data }; // Prevent overwriting existing data
       return newForms;
     });
   };
 
+  const updateExtractedDataForPdf = (pdfIndex, data) => {
+    setExtractedDataByPdf((prevData) => {
+      const newData = [...prevData];
+      newData[pdfIndex] = { ...newData[pdfIndex], ...data }; // Prevent overwriting existing data
+      return newData;
+    });
+  };
+
   return (
-    <PdfContext.Provider value={{
-      pdfFiles, setPdfFiles,
-      extractedTexts, setExtractedTexts,
-      extractingData, setExtractingData,
-      formData, setFormData, updateFormData,
-      
-      // Add all the state values and setters
-      lastnikState, setLastnikState,
-      sluznostiState, setSluznostiState,
-      plombe, setPlombeState,
-      
-      allEmso, setAllEmso,
-      maticna, setMaticna,
-      allPriimek_ime, setPriimekIme,
-      naslov, setNaslov,
-      posta, setPosta,
-      delez, setDelez,
-      
-      zadevaDn, setZadevaDn,
-      tipPostopka, setTipPostopka,
-      casUcinDatum, setCasUcinDatum,
-      casUcinCas, setCasUcinCas,
-      stanjeZadeve, setStanjeZadeve,
-      nacinOd, setNacinOd,
-      
-      idPravice, setIdIPravice,
-      vrstaPravice, setVrstaPravice,
-      ucinDatum, setUcinDatum,
-      ucinUra, setUcinaUra,
-      imetnikNaziv, setImetnikNaziv,
-      imetnikNaslov, setImetnikNaslov,
-      imetnikPosta, setImetnikPosta,
-      opis, setOpis
-    }}>
+    <PdfContext.Provider
+      value={{
+        pdfFiles,
+        setPdfFiles,
+        extractedTexts,
+        setExtractedTexts,
+        extractingData,
+        setExtractingData,
+        formData,
+        setFormData,
+        updateFormData,
+        extractedDataByPdf,
+        setExtractedDataByPdf,
+        updateExtractedDataForPdf,
+        currentPdfIndex,
+        setCurrentPdfIndex,
+        lastnikState,
+        setLastnikState,
+        sluznostiState,
+        setSluznostiState,
+        plombe,
+        setPlombeState,
+        allEmso,
+        setAllEmso,
+        maticna,
+        setMaticna,
+        allPriimek_ime,
+        setPriimekIme,
+        naslov,
+        setNaslov,
+        posta,
+        setPosta,
+        delez,
+        setDelez,
+        zadevaDn,
+        setZadevaDn,
+        tipPostopka,
+        setTipPostopka,
+        casUcinDatum,
+        setCasUcinDatum,
+        casUcinCas,
+        setCasUcinCas,
+        stanjeZadeve,
+        setStanjeZadeve,
+        nacinOd,
+        setNacinOd,
+        idPravice,
+        setIdPravice,
+        vrstaPravice,
+        setVrstaPravice,
+        ucinDatum,
+        setUcinDatum,
+        ucinUra,
+        setUcinUra,
+        imetnikNaziv,
+        setImetnikNaziv,
+        imetnikNaslov,
+        setImetnikNaslov,
+        imetnikPosta,
+        setImetnikPosta,
+        opis,
+        setOpis,
+      }}
+    >
       {children}
     </PdfContext.Provider>
   );
