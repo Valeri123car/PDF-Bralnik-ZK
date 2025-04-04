@@ -76,11 +76,7 @@ function Forms({ index = 0 }) {
       let searchText = currentPdfText;
       if (osnovniPosition !== -1 && podatkiIndex !== -1 && osnovniPosition < podatkiIndex) {
         searchText = currentPdfText.substring(osnovniPosition, podatkiIndex);
-        console.log("Limited search text to the relevant section");
-      } else {
-        console.log("Could not find both section markers, using full text");
       }
-      
       //EMŠO IN MATIČNA (MATIC?)
       const emsoAllTypesRegex = /(Emšo|EMŠO):\s*((?:\d+\*+)|(?:podatek\s+ni\s+vpisan)|(?:\d+))/gi;
       //FIKSAJ EMŠO DA SE LAHKO PONOVI KEJ PO DVAKRAT!
@@ -88,7 +84,6 @@ function Forms({ index = 0 }) {
 
       let foundMatch = false;
       const matches = [...searchText.matchAll(emsoAllTypesRegex)];
-      console.log("ALL MATCHES:", matches);
 
       if (matches && matches.length > 0) {
         for (const match of matches) {
@@ -117,7 +112,6 @@ function Forms({ index = 0 }) {
       if (!foundMatch || pdfData.emso.length === 0) {
         pdfData.emso = ["ni identifikacijske številke"]; 
       }
-      console.log("FINAL EMSO:", pdfData.emso);      
       //IME
       const priimekImeRegex = /osebno ime:\s*([\s\S]+?)(?=\s*naslov:|\d+\/\d+)/gi;
       const firmaNazivRegex = /firma\s*\/\s*naziv:\s*(.+?)(?=\s*naslov:|$)/g;

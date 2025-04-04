@@ -66,16 +66,7 @@ export const PdfProvider = ({ children }) => {
   const [imetnikNaslov, setImetnikNaslov] = useState([]);
   const [imetnikPosta, setImetnikPosta] = useState([]);
   const [opis, setOpis] = useState([]);
-  const string = "hello world"
-  // Log the states whenever they change
-  useEffect(() => {
-    console.log({
-      extractedDataByPdf
-    });
-  }, [
-    extractedDataByPdf
-  ]);
-
+  
   const updateFormData = (index, data) => {
     setFormData((prevForms) => {
       const newForms = [...prevForms];

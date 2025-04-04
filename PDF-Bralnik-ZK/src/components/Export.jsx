@@ -10,8 +10,6 @@ function ExportToExcel() {
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
 
-  console.log("Current extractedDataByPdf:", extractedDataByPdf);
-
   const exportToExcel = async () => {
     setIsExporting(true);
     setError(null);
@@ -28,11 +26,10 @@ function ExportToExcel() {
       let sluznostiSheet;
       let plombeSheet;
       
-      // Set to keep track of unique entries to prevent duplicates
-      const uniqueLastnikEntries = new Set();
-      const uniqueSluznostiEntries = new Set();
-      const uniquePlombeEntries = new Set();
-
+      // Set to track processed PDF files by their content hash or unique identifier
+      const processedPdfIdentifiers = new Set();
+      
+      // Instead of tracking individual entries, track entire PDFs that were already processed
       try {
         // Try to read the existing file
         const response = await fetch(fileName);
@@ -45,37 +42,21 @@ function ExportToExcel() {
           sluznostiSheet = workbook.Sheets['Služnosti'];
           plombeSheet = workbook.Sheets['Plombe'];
           
-          // Extract existing data to prevent duplicates
-          if (lastnikSheet) {
-            const lastnikData = XLSX.utils.sheet_to_json(lastnikSheet);
-            lastnikData.forEach(row => {
-              // Create a unique key for each entry
-              const key = `${row.Šifra}|${row.Parcela}|${row.EMŠO}|${row.Priimek_Ime}`;
-              uniqueLastnikEntries.add(key);
-            });
-          }
-          
-          if (sluznostiSheet) {
-            const sluznostiData = XLSX.utils.sheet_to_json(sluznostiSheet);
-            sluznostiData.forEach(row => {
-              const key = `${row.Šifra}|${row.Parcela}|${row.ID_pravice}|${row.Vrsta_pravice}`;
-              uniqueSluznostiEntries.add(key);
-            });
-          }
-          
-          if (plombeSheet) {
-            const plombeData = XLSX.utils.sheet_to_json(plombeSheet);
-            plombeData.forEach(row => {
-              const key = `${row.Šifra}|${row.Parcela}|${row['Zadeva DN']}|${row.Tip}`;
-              uniquePlombeEntries.add(key);
+          // Extract identifiers of already processed PDFs
+          // This is a custom sheet we'll add to track processed files
+          const processedFilesSheet = workbook.Sheets['ProcessedFiles'];
+          if (processedFilesSheet) {
+            const processedFiles = XLSX.utils.sheet_to_json(processedFilesSheet);
+            processedFiles.forEach(row => {
+              if (row.PdfIdentifier) {
+                processedPdfIdentifiers.add(row.PdfIdentifier);
+              }
             });
           }
         } else {
           throw new Error("File not found, creating new file");
         }
       } catch (err) {
-        console.log("Creating new workbook:", err.message);
-        // Create a new workbook if file doesn't exist or can't be read
         workbook = XLSX.utils.book_new();
         
         // Create sheets with headers
@@ -91,17 +72,38 @@ function ExportToExcel() {
           ['Šifra', 'Parcela', 'Zadeva DN', 'Tip', 'Učin Datum', 'Učin Ura', 'Stanje', 'Način']
         ]);
         
+        // Create a sheet to track processed PDFs
+        const processedFilesSheet = XLSX.utils.aoa_to_sheet([
+          ['PdfIdentifier', 'ProcessedDate']
+        ]);
+        
         // Add sheets to workbook
         XLSX.utils.book_append_sheet(workbook, lastnikSheet, 'Lastnik');
         XLSX.utils.book_append_sheet(workbook, sluznostiSheet, 'Služnosti');
         XLSX.utils.book_append_sheet(workbook, plombeSheet, 'Plombe');
+        XLSX.utils.book_append_sheet(workbook, processedFilesSheet, 'ProcessedFiles');
       }
 
       // Process each PDF's data
+      const newlyProcessedPdfs = [];
+      
       extractedDataByPdf.forEach((pdfData, index) => {
         if (!pdfData) return;
         
-        // Add data to Lastnik sheet
+        // Create a unique identifier for this PDF based on its content
+        // Here we use a combination of sifra, parcela and perhaps a file name or content hash
+        const pdfIdentifier = `${pdfData.sifra || ''}-${pdfData.parcela || ''}-${pdfFiles[index]?.name || ''}`;
+        
+        // Skip if this PDF was already processed
+        if (processedPdfIdentifiers.has(pdfIdentifier)) {
+          return;
+        }
+        
+        // Track that we're processing this PDF
+        newlyProcessedPdfs.push([pdfIdentifier, new Date().toISOString()]);
+        processedPdfIdentifiers.add(pdfIdentifier);
+        
+        // Add data to Lastnik sheet - now we keep all entries from within the same PDF
         if (pdfData.emso && pdfData.emso.length > 0) {
           const lastnikRows = [];
           const maxLastnikLength = Math.max(
@@ -113,27 +115,15 @@ function ExportToExcel() {
           );
           
           for (let i = 0; i < maxLastnikLength; i++) {
-            const sifra = pdfData.sifra || '';
-            const parcela = pdfData.parcela || '';
-            const emso = pdfData.emso?.[i] || '';
-            const priimekIme = pdfData.priimek_ime?.[i] || '';
-            
-            // Create a unique key for this entry
-            const key = `${sifra}|${parcela}|${emso}|${priimekIme}`;
-            
-            // Only add if it's not a duplicate
-            if (!uniqueLastnikEntries.has(key)) {
-              lastnikRows.push([
-                sifra,
-                parcela,
-                emso,
-                priimekIme,
-                pdfData.naslov?.[i] || '',
-                pdfData.posta?.[i] || '',
-                pdfData.delez?.[i] || ''
-              ]);
-              uniqueLastnikEntries.add(key);
-            }
+            lastnikRows.push([
+              pdfData.sifra || '',
+              pdfData.parcela || '',
+              pdfData.emso?.[i] || '',
+              pdfData.priimek_ime?.[i] || '',
+              pdfData.naslov?.[i] || '',
+              pdfData.posta?.[i] || '',
+              pdfData.delez?.[i] || ''
+            ]);
           }
           
           if (lastnikRows.length > 0) {
@@ -154,49 +144,37 @@ function ExportToExcel() {
           );
           
           for (let i = 0; i < maxSluznostiLength; i++) {
-            const sifra = pdfData.sifra || '';
-            const parcela = pdfData.parcela || '';
-            const idPravice = pdfData.idPravice?.[i] || '';
-            const vrstaPravice = pdfData.vrstaPravice?.[i] || '';
-            
-            // Create a unique key for this entry
-            const key = `${sifra}|${parcela}|${idPravice}|${vrstaPravice}`;
-            
-            // Only add if it's not a duplicate
-            if (!uniqueSluznostiEntries.has(key)) {
-              // Handle nested arrays for imetnikNaslov and imetnikPosta
-              let imetnikNaslovValue = '';
-              if (pdfData.imetnikNaslov && pdfData.imetnikNaslov[i]) {
-                if (Array.isArray(pdfData.imetnikNaslov[i])) {
-                  imetnikNaslovValue = pdfData.imetnikNaslov[i].join(', ');
-                } else {
-                  imetnikNaslovValue = pdfData.imetnikNaslov[i];
-                }
+            // Handle nested arrays for imetnikNaslov and imetnikPosta
+            let imetnikNaslovValue = '';
+            if (pdfData.imetnikNaslov && pdfData.imetnikNaslov[i]) {
+              if (Array.isArray(pdfData.imetnikNaslov[i])) {
+                imetnikNaslovValue = pdfData.imetnikNaslov[i].join(', ');
+              } else {
+                imetnikNaslovValue = pdfData.imetnikNaslov[i];
               }
-              
-              let imetnikPostaValue = '';
-              if (pdfData.imetnikPosta && pdfData.imetnikPosta[i]) {
-                if (Array.isArray(pdfData.imetnikPosta[i])) {
-                  imetnikPostaValue = pdfData.imetnikPosta[i].join(', ');
-                } else {
-                  imetnikPostaValue = pdfData.imetnikPosta[i];
-                }
-              }
-              
-              sluznostiRows.push([
-                sifra,
-                parcela,
-                idPravice,
-                vrstaPravice,
-                pdfData.ucinDatum?.[i] || '',
-                pdfData.ucinUra?.[i] || '',
-                pdfData.imetnikNaziv?.[i] || '',
-                imetnikNaslovValue,
-                imetnikPostaValue,
-                pdfData.opis?.[i] || ''
-              ]);
-              uniqueSluznostiEntries.add(key);
             }
+            
+            let imetnikPostaValue = '';
+            if (pdfData.imetnikPosta && pdfData.imetnikPosta[i]) {
+              if (Array.isArray(pdfData.imetnikPosta[i])) {
+                imetnikPostaValue = pdfData.imetnikPosta[i].join(', ');
+              } else {
+                imetnikPostaValue = pdfData.imetnikPosta[i];
+              }
+            }
+            
+            sluznostiRows.push([
+              pdfData.sifra || '',
+              pdfData.parcela || '',
+              pdfData.idPravice?.[i] || '',
+              pdfData.vrstaPravice?.[i] || '',
+              pdfData.ucinDatum?.[i] || '',
+              pdfData.ucinUra?.[i] || '',
+              pdfData.imetnikNaziv?.[i] || '',
+              imetnikNaslovValue,
+              imetnikPostaValue,
+              pdfData.opis?.[i] || ''
+            ]);
           }
           
           if (sluznostiRows.length > 0) {
@@ -217,28 +195,16 @@ function ExportToExcel() {
           );
           
           for (let i = 0; i < maxPlombeLength; i++) {
-            const sifra = pdfData.sifra || '';
-            const parcela = pdfData.parcela || '';
-            const zadevaDn = pdfData.zadevaDn?.[i] || '';
-            const tipPostopka = pdfData.tipPostopka?.[i] || '';
-            
-            // Create a unique key for this entry
-            const key = `${sifra}|${parcela}|${zadevaDn}|${tipPostopka}`;
-            
-            // Only add if it's not a duplicate
-            if (!uniquePlombeEntries.has(key)) {
-              plombeRows.push([
-                sifra,
-                parcela,
-                zadevaDn,
-                tipPostopka,
-                pdfData.casUcinDatum?.[i] || '',
-                pdfData.casUcinCas?.[i] || '',
-                pdfData.stanjeZadeve?.[i] || '',
-                pdfData.nacinOd?.[i] || ''
-              ]);
-              uniquePlombeEntries.add(key);
-            }
+            plombeRows.push([
+              pdfData.sifra || '',
+              pdfData.parcela || '',
+              pdfData.zadevaDn?.[i] || '',
+              pdfData.tipPostopka?.[i] || '',
+              pdfData.casUcinDatum?.[i] || '',
+              pdfData.casUcinCas?.[i] || '',
+              pdfData.stanjeZadeve?.[i] || '',
+              pdfData.nacinOd?.[i] || ''
+            ]);
           }
           
           if (plombeRows.length > 0) {
@@ -246,6 +212,12 @@ function ExportToExcel() {
           }
         }
       });
+      
+      // Update the ProcessedFiles sheet with newly processed PDFs
+      if (newlyProcessedPdfs.length > 0) {
+        const processedFilesSheet = workbook.Sheets['ProcessedFiles'];
+        XLSX.utils.sheet_add_aoa(processedFilesSheet, newlyProcessedPdfs, { origin: -1 });
+      }
 
       // Export file
       const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
