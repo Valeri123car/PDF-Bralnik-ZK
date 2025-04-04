@@ -12,7 +12,7 @@ function DragAndDrop({ setNumForms }) {
   const { setPdfFiles, setExtractedTexts, setExtractingData } = usePdf();
   const [fileNames, setFileNames] = useState([]);
   const [processing, setProcessing] = useState(false);
-  const [folderPath, setFolderPath] = useState("C:/Users/valer/OneDrive - Univerza v Mariboru/Namizje/ZK_pdf_doc");
+  const [folderPath, setFolderPath] = useState("Željena pot");
   const [isEditing, setIsEditing] = useState(false);
 
   const handleSelectFolder = async () => {
@@ -45,8 +45,6 @@ function DragAndDrop({ setNumForms }) {
         const content = await page.getTextContent();
         text += content.items.map((item) => item.str).join(" ") + "\n";
       }
-
-      console.log(`Extracted text from ${filePath}:\n${text}`);
       return { filePath, text: text || "No text found in the PDF." };
     } catch (error) {
       console.error("Error reading the PDF file:", error);
@@ -57,8 +55,6 @@ function DragAndDrop({ setNumForms }) {
   const handleProcessData = async () => {
     setProcessing(true);
     setExtractingData(true);
-    console.log("Successfully processing data for:", fileNames);
-    console.log(extractTextFromPDF)
 
     let extractedTexts = [];
 
