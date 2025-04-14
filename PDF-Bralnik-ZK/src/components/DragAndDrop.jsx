@@ -9,108 +9,115 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 function DragAndDrop({ setNumForms }) {
-  const { setPdfFiles, setExtractedTexts, setExtractingData } = usePdf();
-  const [fileNames, setFileNames] = useState([]);
+  const { pdfFiles, setPdfFiles, setExtractedTexts, setExtractingData } = usePdf();  const [fileNames, setFileNames] = useState([]);
   const [processing, setProcessing] = useState(false);
-  const [folderPath, setFolderPath] = useState("Željena pot");
-  const [isEditing, setIsEditing] = useState(false);
+  const [folderPath, setFolderPath] = useState("Select a folder");
 
   const handleSelectFolder = async () => {
-    const fs = window.require("fs");
-    const path = window.require("path");
-
     try {
-      const files = fs.readdirSync(folderPath);
-      const pdfFiles = files.filter(file => path.extname(file) === ".pdf");
-
-      setFileNames(pdfFiles);
-      setPdfFiles(pdfFiles.map(file => ({ path: path.join(folderPath, file), name: file })));
-      setNumForms(pdfFiles.length);
+      // Use the browser's directory picker API
+      const dirHandle = await window.showDirectoryPicker({
+        mode: "read"
+      });
+      
+      // Get folder path info
+      const folderName = dirHandle.name;
+      setFolderPath(folderName);
+      
+      // Get all files in the directory
+      const files = [];
+      for await (const entry of dirHandle.values()) {
+        if (entry.kind === "file" && entry.name.toLowerCase().endsWith(".pdf")) {
+          files.push(entry);
+        }
+      }
+      
+      // Process PDF files
+      const pdfFileEntries = [];
+      const pdfFileNames = [];
+      
+      for (const fileEntry of files) {
+        if (fileEntry.name.toLowerCase().endsWith(".pdf")) {
+          pdfFileEntries.push(fileEntry);
+          pdfFileNames.push(fileEntry.name);
+        }
+      }
+      
+      setFileNames(pdfFileNames);
+      setPdfFiles(pdfFileEntries.map(fileEntry => ({ handle: fileEntry, name: fileEntry.name })));
+      setNumForms(pdfFileEntries.length);
     } catch (error) {
-      console.error("Prišlo je do napake pri dostopanju datoteke:", error);
-      alert(`Napaka pri dostopu do mape: ${error.message}`);
+      console.error("Error accessing folder:", error);
+      if (error.name !== "AbortError") {
+        alert(`Error accessing folder: ${error.message}`);
+      }
     }
   };
 
-  const extractTextFromPDF = async (filePath) => {
-    const fs = window.require("fs");
-
+  const extractTextFromPDF = async (fileHandle) => {
     try {
-      const pdfData = fs.readFileSync(filePath);
-      const pdf = await pdfjs.getDocument({ data: pdfData }).promise;
-
+      const file = await fileHandle.getFile();
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Load the PDF using PDF.js
+      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+      
       let text = "";
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
         text += content.items.map((item) => item.str).join(" ") + "\n";
       }
-      return { filePath, text: text || "No text found in the PDF." };
+      
+      return { fileName: fileHandle.name, text: text || "No text found in the PDF." };
     } catch (error) {
       console.error("Error reading the PDF file:", error);
-      return { filePath, text: `Error processing ${filePath}: Error reading the PDF file.` };
+      return { fileName: fileHandle.name, text: `Error processing ${fileHandle.name}: ${error.message}` };
     }
   };
 
   const handleProcessData = async () => {
     setProcessing(true);
     setExtractingData(true);
-
-    let extractedTexts = [];
-
-    for (const fileName of fileNames) {
-      const filePath = `${folderPath}/${fileName}`;
-      const extractedData = await extractTextFromPDF(filePath);
-      extractedTexts.push(extractedData); 
+  
+    try {
+      const extractedResults = [];
+      
+      for (const pdfFile of pdfFiles) {
+        const extractedData = await extractTextFromPDF(pdfFile.handle);
+        extractedResults.push(extractedData);
+      }
+      
+      // Update state with the extracted results
+      setExtractedTexts(extractedResults);
+      
+      // You might want to add a callback to ensure the UI updates
+      console.log("Processing complete:", extractedResults.length, "files processed");
+      
+    } catch (error) {
+      console.error("Error processing PDF files:", error);
+      alert(`Error processing PDF files: ${error.message}`);
+    } finally {
+      setProcessing(false);
+      setExtractingData(false);
     }
-
-    setExtractedTexts(extractedTexts); 
-    setProcessing(false);
   };
 
   const removeFiles = () => {
     setFileNames([]);
-    setExtractedTexts([]); 
+    setPdfFiles([]);
+    setExtractedTexts([]);
     setExtractingData(false);
     setProcessing(false);
-  };
-
-  const toggleEditPath = () => {
-    setIsEditing(!isEditing);
-  };
-
-  const handlePathChange = (e) => {
-    setFolderPath(e.target.value);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      setIsEditing(false);
-    }
   };
 
   return (
     <div className="dragAndDrop">
       <div className="folder-path-section">
         <div className="folder-path-container">
-          {isEditing ? (
-            <input 
-              type="text" 
-              value={folderPath} 
-              onChange={handlePathChange} 
-              onBlur={() => setIsEditing(false)}
-              onKeyDown={handleKeyDown}
-              autoFocus
-              className="folder-path-input"
-            />
-          ) : (
-            <div className="folder-path-display" onClick={toggleEditPath}>
-              <span title={folderPath}>{folderPath}</span>
-              <button className="edit-path-button" onClick={toggleEditPath}>
-                Uredi
-              </button>
-            </div>
-          )}
+          <div className="folder-path-display">
+            <span title={folderPath}>{folderPath}</span>
+          </div>
         </div>
       </div>
       

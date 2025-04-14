@@ -8,11 +8,14 @@ function createWindow() {
     height: 600,
     icon: __dirname + "gzcZK.ico",
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      devTools: false,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      webSecurity: true,
+      preload: path.join(__dirname, "preload.js"),
+      devTools: true,
     },
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
   });
 
   mainWindow.loadFile(path.join(__dirname, "../dist/index.html"));

@@ -1,0 +1,20 @@
+directories:
+  output: dist-zk
+  buildResources: build
+appId: com.example.gzc-branje-zk
+productName: GZC-Branje-ZK
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*
+      - node_modules/**/*
+      - package.json
+nsis:
+  uninstallDisplayName: Uninstall this app.
+  license: licence.txt
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+win:
+  target: nsis
+  icon: GZCeljeZK.ico
+electronVersion: 35.0.1
