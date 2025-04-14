@@ -295,63 +295,6 @@ pdfData.priimek_ime = extractedData.priimek_ime;
     }
   }, [extractedTexts, extractingData, index]);
 
-  // New function to extract plombe data by case
-  function extractPlombeData(searchTextPlombe) {
-    // Split text by "zadeva Dn" to separate individual cases
-    // First replace all newlines with spaces to handle multi-line entries
-    const normalizedText = searchTextPlombe.replace(/\n/g, ' ');
-    
-    // Split by "zadeva Dn" but keep the delimiter with the following part
-    const caseParts = normalizedText.split(/(?=zadeva\s+Dn)/i).filter(part => part.trim());
-    
-    // Process each case separately
-    const plombeData = [];
-    
-    for (const casePart of caseParts) {
-      if (!casePart.trim()) continue;
-      
-      const caseData = {};
-      
-      // Extract zadeva Dn
-      const zadevaDnMatch = casePart.match(/zadeva\s+Dn\s+(\d+\/\d+)/i);
-      if (zadevaDnMatch) {
-        caseData.zadevaDn = zadevaDnMatch[1].trim();
-      }
-      
-      // Extract tip postopka
-      const tipPostopkaMatch = casePart.match(/tip\s*postopka\s+(.*?)(?=stanje|začetek\s*postopka|$)/i);
-      if (tipPostopkaMatch) {
-        caseData.tipPostopka = tipPostopkaMatch[1].trim();
-      }
-      
-      // Extract čas učinkovanja
-      const casUcinMatch = casePart.match(/čas\s+začetka\s*učinkovanja\s*(\d{2}.\d{2}.\d{4})\s*(\d+:\d+:\d+)/i);
-      if (casUcinMatch) {
-        caseData.casUcinDatum = casUcinMatch[1].trim();
-        caseData.casUcinCas = casUcinMatch[2].trim();
-      }
-      
-      // Extract stanje zadeve
-      const stanjeZadeveMatch = casePart.match(/stanje\s+zadeve\s+(.*?)(?=način|$)/i);
-      if (stanjeZadeveMatch) {
-        caseData.stanjeZadeve = stanjeZadeveMatch[1].trim();
-      }
-      
-      // Extract način odločitve
-      const nacinOdlMatch = casePart.match(/način\s+odločitve\s*o\s*vpisu:\s*(.*?)(?=\s*tip\s*pripada|$)/i);
-      if (nacinOdlMatch) {
-        caseData.nacinOd = nacinOdlMatch[1].trim();
-      }
-      
-      // Only add if we have a valid zadeva Dn reference
-      if (caseData.zadevaDn) {
-        plombeData.push(caseData);
-      }
-    }
-    
-    return plombeData;
-  }
-
   function extractImetnikData(stringOut) {
     const imetnikRegex = /imetnik:\s*(\d+\.)\s*(.*?)(?=imetnik:\s*\d+\.|$)/gs;
     
@@ -415,7 +358,40 @@ pdfData.priimek_ime = extractedData.priimek_ime;
   
     return imetniki;
   }
-  const currentPdfData = extractedDataByPdf[index] || {};
+  function extractPlombeData(searchTextPlombe) {
+    const normalizedText = searchTextPlombe.replace(/\n/g, ' ');
+    const caseParts = normalizedText.split(/(?=zadeva\s+Dn)/i).filter(part => part.trim());
+    const plombeData = [];
+    for (const casePart of caseParts) {
+      if (!casePart.trim()) continue;
+      const caseData = {};
+      const zadevaDnMatch = casePart.match(/zadeva\s+Dn\s+(\d+\/\d+)/i);
+      if (zadevaDnMatch) {
+        caseData.zadevaDn = zadevaDnMatch[1].trim();
+      }
+      const tipPostopkaMatch = casePart.match(/tip\s*postopka\s+(.*?)(?=stanje|začetek\s*postopka|$)/i);
+      if (tipPostopkaMatch) {
+        caseData.tipPostopka = tipPostopkaMatch[1].trim();
+      }
+      const casUcinMatch = casePart.match(/čas\s+začetka\s*učinkovanja\s*(\d{2}.\d{2}.\d{4})\s*(\d+:\d+:\d+)/i);
+      if (casUcinMatch) {
+        caseData.casUcinDatum = casUcinMatch[1].trim();
+        caseData.casUcinCas = casUcinMatch[2].trim();
+      }
+      const stanjeZadeveMatch = casePart.match(/stanje\s+zadeve\s+(.*?)(?=način|$)/i);
+      if (stanjeZadeveMatch) {
+        caseData.stanjeZadeve = stanjeZadeveMatch[1].trim();
+      }
+      const nacinOdlMatch = casePart.match(/način\s+odločitve\s*o\s*vpisu:\s*(.*?)(?=\s*tip\s*pripada|$)/i);
+      if (nacinOdlMatch) {
+        caseData.nacinOd = nacinOdlMatch[1].trim();
+      }
+      if (caseData.zadevaDn) {
+        plombeData.push(caseData);
+      }
+    } 
+    return plombeData;
+  }
 
   return (
     <></>
