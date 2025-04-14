@@ -77,54 +77,75 @@ function Forms({ index = 0 }) {
       if (osnovniPosition !== -1 && podatkiIndex !== -1 && osnovniPosition < podatkiIndex) {
         searchText = currentPdfText.substring(osnovniPosition, podatkiIndex);
       }
-      //EMŠO IN MATIČNA (MATIC?)
-      const emsoAllTypesRegex = /(Emšo|EMŠO):\s*((?:\d+\*+)|(?:podatek\s+ni\s+vpisan)|(?:\d+))/gi;
-      //FIKSAJ EMŠO DA SE LAHKO PONOVI KEJ PO DVAKRAT!
-      pdfData.emso = [];
+      // Extract owners in order by section
+function extractOwnersInOrder(searchText) {
+  const ownersData = [];
+  
+  // First identify all ID osnovnega položaja sections
+  const sectionPattern = /ID osnovnega položaja:\s*(\d+).*?(?=ID osnovnega položaja:|Podrobni podatki|$)/gs;
+  let sectionMatch;
+  
+  while ((sectionMatch = sectionPattern.exec(searchText)) !== null) {
+    const section = sectionMatch[0];
+    const position = sectionMatch.index;
+    const id = sectionMatch[1];
+    
+    // Extract identifier (EMŠO or matična)
+    let identifier = null;
+    const emsoMatch = section.match(/(Emšo|EMŠO):\s*((?:\d+\*+)|(?:podatek\s+ni\s+vpisan)|(?:\d+))/i);
+    const maticnaMatch = section.match(/matična številka:\s*([\d\*]+)/i);
+    
+    if (emsoMatch) {
+      identifier = emsoMatch[2].trim();
+    } else if (maticnaMatch) {
+      identifier = maticnaMatch[1].trim();
+    }
+    
+    // Extract name (osebno ime or firma/naziv)
+    let name = null;
+    const imeMatch = section.match(/osebno ime:\s*([\s\S]+?)(?=\s*naslov:|\d+\/\d+)/i);
+    const firmaMatch = section.match(/firma\s*\/\s*naziv:\s*(.+?)(?=\s*naslov:|$)/i);
+    
+    if (imeMatch) {
+      name = imeMatch[1].trim();
+    } else if (firmaMatch) {
+      name = firmaMatch[1].trim();
+    }
+    
+    // Store with original position for sorting
+    ownersData.push({
+      position: position,
+      identifier: identifier,
+      name: name
+    });
+  }
+  
+  // Sort by position to maintain order
+  ownersData.sort((a, b) => a.position - b.position);
+  
+  // Extract to arrays
+  const emsoArray = [];
+  const nameArray = [];
+  
+  for (const owner of ownersData) {
+    if (owner.identifier) {
+      emsoArray.push(owner.identifier);
+    }
+    if (owner.name) {
+      nameArray.push(owner.name);
+    }
+  }
+  
+  return { 
+    emso: emsoArray.length > 0 ? emsoArray : ["ni identifikacijske številke"],
+    priimek_ime: nameArray.length > 0 ? nameArray : ["ni imena"]
+  };
+}
 
-      let foundMatch = false;
-      const matches = [...searchText.matchAll(emsoAllTypesRegex)];
-
-      if (matches && matches.length > 0) {
-        for (const match of matches) {
-          const value = match[2].trim();
-          if (value.includes("podatek ni vpisan")) {
-            pdfData.emso.push("podatek ni vpisan");
-          } else {
-            pdfData.emso.push(value);
-          }
-          foundMatch = true;
-        }
-      }
-
-      if (!foundMatch) {
-        const maticnaRegex = /matična številka:\s*(.*?)(?:\s*firma|$)/gi;
-        const maticnaMatches = [...searchText.matchAll(maticnaRegex)];
-        
-        if (maticnaMatches && maticnaMatches.length > 0) {
-          for (const match of maticnaMatches) {
-            pdfData.emso.push(match[1].trim());
-            foundMatch = true;
-          }
-        }
-      }
-
-      if (!foundMatch || pdfData.emso.length === 0) {
-        pdfData.emso = ["ni identifikacijske številke"]; 
-      }
-      //IME
-      const priimekImeRegex = /osebno ime:\s*([\s\S]+?)(?=\s*naslov:|\d+\/\d+)/gi;
-      const firmaNazivRegex = /firma\s*\/\s*naziv:\s*(.+?)(?=\s*naslov:|$)/g;
-      const priimekImeMatches = [...searchText.matchAll(priimekImeRegex)];
-      const firmaNazivMatches = [...searchText.matchAll(firmaNazivRegex)];
-      // Merge both name types under priimek_ime
-      if (priimekImeMatches && priimekImeMatches.length > 0) {
-        pdfData.priimek_ime = priimekImeMatches.map(match => match[1].trim());
-      } else if (firmaNazivMatches && firmaNazivMatches.length > 0) {
-        pdfData.priimek_ime = firmaNazivMatches.map(match => match[1].trim());
-      } else {
-        pdfData.priimek_ime = ["ni imena"];
-      }
+// Use the function
+const extractedData = extractOwnersInOrder(searchText);
+pdfData.emso = extractedData.emso;
+pdfData.priimek_ime = extractedData.priimek_ime;
 
       //NASLOV
       const naslovRegex = /naslov:\s*([^]*?)(?=\s+(?:\d+\/\d+|omejitve:|zveza|ID|$)|\n)/gi;
@@ -145,21 +166,59 @@ function Forms({ index = 0 }) {
       }
       
       //POSTA
-      const postaRegex = /naslov:\s*(.*?,\s*)(\d+)(?=omejitve:|\d+\/\d+|(.*))/gi;
-      let postaMatch;
-      while ((postaMatch = postaRegex.exec(searchText)) !== null) {
-        if (postaRegex.lastIndex <= postaMatch.index) {
-          postaRegex.lastIndex = postaMatch.index + 1;
-          continue;
+      function extractPostalCodesInOrder(searchText) {
+        const addresses = [];
+        
+        // First identify all naslov sections
+        const naslovPattern = /naslov:\s*([^]*?)(?=\s*omejitve:|ID osnovnega položaja:|$)/gi;
+        let naslovMatch;
+        
+        while ((naslovMatch = naslovPattern.exec(searchText)) !== null) {
+          const addressText = naslovMatch[1].trim();
+          const position = naslovMatch.index;
+          let postalCode = null;
+          
+          // Try different postal code patterns
+          
+          // Standard Slovenian/Croatian format: City, 1000 Ljubljana
+          const standardMatch = addressText.match(/,\s*(\d{4,5})\s+[^,]+/);
+          
+          // International format with postal before city: 1061 Budapest
+          const internationalMatch = addressText.match(/\b(\d{4,5})\s+[A-Za-z]/);
+          
+          // Format with postal after city: Rimini 47037
+          const reverseMatch = addressText.match(/[A-Za-z]+\s+(\d{4,5})\b/);
+          
+          // House number confusion prevention - look for postal codes specifically 4-5 digits
+          if (standardMatch) {
+            postalCode = standardMatch[1];
+          } else if (internationalMatch) {
+            postalCode = internationalMatch[1];
+          } else if (reverseMatch) {
+            postalCode = reverseMatch[1];
+          }
+          
+          // Store with original position for sorting
+          addresses.push({
+            position: position,
+            fullAddress: addressText,
+            postalCode: postalCode || "ni pošte"
+          });
         }
-        const posta = postaMatch[2].trim();
-        if (!posta) {
-          pdfData.posta.push("ni pošte");
-        } else if (posta.length > 100) {
-          pdfData.posta.push("ni pošte");
-        } else {
-          pdfData.posta.push(posta);
-        }
+        
+        // Sort by position to maintain order
+        addresses.sort((a, b) => a.position - b.position);
+        
+        // Extract just the postal codes
+        return addresses.map(a => a.postalCode);
+      }
+      
+      // Use the function
+      pdfData.posta = extractPostalCodesInOrder(searchText);
+      
+      // Make sure we have at least one entry if nothing was found
+      if (pdfData.posta.length === 0) {
+        pdfData.posta = ["ni pošte"];
       }
       
       //DELEŽ
