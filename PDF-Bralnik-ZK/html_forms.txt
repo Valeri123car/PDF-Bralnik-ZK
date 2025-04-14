@@ -1,0 +1,138 @@
+<div className="forms">
+      <h3>PDF #{index + 1} Data</h3>
+      <div>ID: {currentPdfData.sifra || "/"}</div>
+      <div>parcela: {currentPdfData.parcela || "/"}</div>
+      
+      <h4>EMŠO:</h4>
+      <ul>
+        {currentPdfData.emso?.length > 0 ? currentPdfData.emso.map((emso, idx) => (
+          <li key={idx}>{emso}</li>
+        )) : <li>ni nobenga emša</li>}
+      </ul>
+      
+      <h4>Ime in priimek:</h4>
+      <ul>
+        {currentPdfData.priimek_ime?.length > 0 ? currentPdfData.priimek_ime.map((ime, idx) => (
+          <li key={idx}>{ime}</li>
+        )) : <li>ni nobenga imena</li>}
+      </ul>
+      
+      <h4>Naslov:</h4>
+      <ul>
+        {currentPdfData.naslov?.length > 0 ? currentPdfData.naslov.map((n, idx) => (
+          <li key={idx}>{n}</li>
+        )) : <li>ni nobenga naslova</li>}
+      </ul>
+      
+      <h4>Pošta:</h4>
+      <ul>
+        {currentPdfData.posta?.length > 0 ? currentPdfData.posta.map((p, idx) => (
+          <li key={idx}>{p}</li>
+        )) : <li>ni nobene poste</li>}
+      </ul>
+      
+      <h4>Delež:</h4>
+      <ul>
+        {currentPdfData.delez?.length > 0 ? currentPdfData.delez.map((d, idx) => (
+          <li key={idx}>{d}</li>
+        )) : <li>ni nobenga deleza</li>}
+      </ul>
+      
+      <h4>Zadeva Dn:</h4>
+      <ul>
+        {currentPdfData.zadevaDn?.length > 0 ? currentPdfData.zadevaDn.map((z, idx) => (
+          <li key={idx}>{z}</li>
+        )) : <li>ni nobene zadeve</li>}
+      </ul>
+      
+      <h4>Tip postopka:</h4>
+      <ul>
+        {currentPdfData.tipPostopka?.length > 0 ? currentPdfData.tipPostopka.map((t, idx) => (
+          <li key={idx}>{t}</li>
+        )) : <li>ni nobenga postopka</li>}
+      </ul>
+      
+      <h4>Datum učinkovanja:</h4>
+      <ul>
+        {currentPdfData.casUcinDatum?.length > 0 ? currentPdfData.casUcinDatum.map((d, idx) => (
+          <li key={idx}>{d}</li>
+        )) : <li>ni nobenga datuma</li>}
+      </ul>
+      
+      <h4>Čas učinkovanja:</h4>
+      <ul>
+        {currentPdfData.casUcinCas?.length > 0 ? currentPdfData.casUcinCas.map((c, idx) => (
+          <li key={idx}>{c}</li>
+        )) : <li>ni nobenga casa</li>}
+      </ul>
+      
+      <h4>Stanje zadeve:</h4>
+      <ul>
+        {currentPdfData.stanjeZadeve?.length > 0 ? currentPdfData.stanjeZadeve.map((s, idx) => (
+          <li key={idx}>{s}</li>
+        )) : <li>ni nobene zadeve</li>}
+      </ul>
+      
+      <h4>Način odločitve:</h4>
+      <ul>
+        {currentPdfData.nacinOd?.length > 0 ? currentPdfData.nacinOd.map((n, idx) => (
+          <li key={idx}>{n}</li>
+        )) : <li>ni nobene odl</li>}
+      </ul>
+      
+      <h4>ID pravice:</h4>
+      <ul>
+        {currentPdfData.idPravice?.length > 0 ? currentPdfData.idPravice.map((i, idx) => (
+          <li key={idx}>{i}</li>
+        )) : <li>ni nobene idPravice</li>}
+      </ul>
+      
+      <h4>Vrsta pravice:</h4>
+      <ul>
+        {currentPdfData.vrstaPravice?.length > 0 ? currentPdfData.vrstaPravice.map((v, idx) => (
+          <li key={idx}>{v}</li>
+        )) : <li>ni nobene vrsta pravice</li>}
+      </ul>
+      
+      <h4>Datum učinkovanja (služnosti):</h4>
+      <ul>
+        {currentPdfData.ucinDatum?.length > 0 ? currentPdfData.ucinDatum.map((d, idx) => (
+          <li key={idx}>{d}</li>
+        )) : <li>ni nobenega datuma</li>}
+      </ul>
+      
+      <h4>Ura učinkovanja:</h4>
+      <ul>
+        {currentPdfData.ucinUra?.length > 0 ? currentPdfData.ucinUra.map((u, idx) => (
+          <li key={idx}>{u}</li>
+        )) : <li>ni nobene ure</li>}
+      </ul>
+      
+      <h4>Imetnik naziv:</h4>
+      <ul>
+        {currentPdfData.imetnikNaziv?.length > 0 ? currentPdfData.imetnikNaziv.map((i, idx) => (
+          <li key={idx}>{i}</li>
+        )) : <li>ni nobene imetnikNaziv</li>}
+      </ul>
+      
+      <h4>Imetnik naslov:</h4>
+      <ul>
+        {currentPdfData.imetnikNaslov?.length > 0 ? currentPdfData.imetnikNaslov.map((i, idx) => (
+          <li key={idx}>{i}</li>
+        )) : <li>ni nobene imetnikNaslov</li>}
+      </ul>
+      
+      <h4>Imetnik pošta:</h4>
+      <ul>
+        {currentPdfData.imetnikPosta?.length > 0 ? currentPdfData.imetnikPosta.map((i, idx) => (
+          <li key={idx}>{i}</li>
+        )) : <li>ni nobene imetnikPosta</li>}
+      </ul>
+      
+      <h4>Opis:</h4>
+      <ul>
+        {currentPdfData.opis?.length > 0 ? currentPdfData.opis.map((o, idx) => (
+          <li key={idx}>{o}</li>
+        )) : <li>ni nobenega opisa</li>}
+      </ul>
+    </div>

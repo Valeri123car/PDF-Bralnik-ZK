@@ -228,48 +228,25 @@ pdfData.priimek_ime = extractedData.priimek_ime;
         pdfData.delez = delezMatches.map(match => match[2].trim());
       }
       
-      //REGEX ZA PLOMBE
+      // REGEX ZA PLOMBE - NEW IMPLEMENTATION
       const osnovniPositionPlombe = currentPdfText.indexOf("Plombe:");
       const podatkiIndexPlombe = currentPdfText.indexOf("Osnovni pravni položaj nepremičnine:");
-      let searchTextPlombe = currentPdfText;
+      
       if (osnovniPositionPlombe !== -1 && podatkiIndexPlombe !== -1 && osnovniPositionPlombe < podatkiIndexPlombe) {
-        searchTextPlombe = currentPdfText.substring(osnovniPositionPlombe, podatkiIndexPlombe);
-      }
-      
-      //zadeva Dn 
-      const zadevaDnRegex = /zadeva\s+Dn\s+(\d+\/\d+)/gi;
-      const zadevaDnMatches = [...searchTextPlombe.matchAll(zadevaDnRegex)];
-      if (zadevaDnMatches && zadevaDnMatches.length > 0) {
-        pdfData.zadevaDn = zadevaDnMatches.map(match => match[1].trim());
-      }
-      
-      //tip postopka
-      const tipPostopkaRegex = /tip\s*postopka\s+(.*)(?=stanje|(\d+\/\d+))/gi;
-      const tipPostopaMatches = [...searchTextPlombe.matchAll(tipPostopkaRegex)];
-      if (tipPostopaMatches && tipPostopaMatches.length > 0){
-        pdfData.tipPostopka = tipPostopaMatches.map(match => match[1].trim());
-      }
-      
-      //čas učinkovanja
-      const casUcinRegex = /čas\s+začetka\s*učinkovanja\s*(\d{2}.\d{2}.\d{4})\s*(\d+:\d+:\d+)/gi;
-      const casUcinMatches = [...searchTextPlombe.matchAll(casUcinRegex)];
-      if (casUcinMatches && casUcinMatches.length > 0){
-        pdfData.casUcinDatum = casUcinMatches.map(match => match[1].trim());
-        pdfData.casUcinCas = casUcinMatches.map(match => match[2].trim()); 
-      }
-      
-      //stanje zadeve
-      const stanjeZadeveRegex = /stanje\s+zadeve\s+(.*?)\s+(način|\d+\/\d+)/gi;
-      const stanjeZadeveMatches = [...searchTextPlombe.matchAll(stanjeZadeveRegex)];
-      if (stanjeZadeveMatches && stanjeZadeveMatches.length > 0){
-        pdfData.stanjeZadeve = stanjeZadeveMatches.map(match => match[1].trim());
-      }
-      
-      //način odločitve
-      const nacinOdlReg = /način\s+odločitve\s*o\s*vpisu:\s*(.*?)(?=\s*tip\s*pripada|\s*\d+\/\d+)/gi;
-      const nacinOdMatches = [...searchTextPlombe.matchAll(nacinOdlReg)];
-      if (nacinOdMatches && nacinOdMatches.length > 0){
-        pdfData.nacinOd = nacinOdMatches.map(match => match[1].trim());
+        const searchTextPlombe = currentPdfText.substring(osnovniPositionPlombe, podatkiIndexPlombe);
+        
+        // Extract plombe data by case
+        const plombeData = extractPlombeData(searchTextPlombe);
+        
+        // Fill pdfData with extracted plombe info
+        if (plombeData.length > 0) {
+          pdfData.zadevaDn = plombeData.map(p => p.zadevaDn);
+          pdfData.tipPostopka = plombeData.map(p => p.tipPostopka);
+          pdfData.casUcinDatum = plombeData.map(p => p.casUcinDatum);
+          pdfData.casUcinCas = plombeData.map(p => p.casUcinCas);
+          pdfData.stanjeZadeve = plombeData.map(p => p.stanjeZadeve);
+          pdfData.nacinOd = plombeData.map(p => p.nacinOd);
+        }
       }
       
       //REGEX ZA SLUŽNOSTI
@@ -317,6 +294,63 @@ pdfData.priimek_ime = extractedData.priimek_ime;
       updateExtractedDataForPdf(index, pdfData);
     }
   }, [extractedTexts, extractingData, index]);
+
+  // New function to extract plombe data by case
+  function extractPlombeData(searchTextPlombe) {
+    // Split text by "zadeva Dn" to separate individual cases
+    // First replace all newlines with spaces to handle multi-line entries
+    const normalizedText = searchTextPlombe.replace(/\n/g, ' ');
+    
+    // Split by "zadeva Dn" but keep the delimiter with the following part
+    const caseParts = normalizedText.split(/(?=zadeva\s+Dn)/i).filter(part => part.trim());
+    
+    // Process each case separately
+    const plombeData = [];
+    
+    for (const casePart of caseParts) {
+      if (!casePart.trim()) continue;
+      
+      const caseData = {};
+      
+      // Extract zadeva Dn
+      const zadevaDnMatch = casePart.match(/zadeva\s+Dn\s+(\d+\/\d+)/i);
+      if (zadevaDnMatch) {
+        caseData.zadevaDn = zadevaDnMatch[1].trim();
+      }
+      
+      // Extract tip postopka
+      const tipPostopkaMatch = casePart.match(/tip\s*postopka\s+(.*?)(?=stanje|začetek\s*postopka|$)/i);
+      if (tipPostopkaMatch) {
+        caseData.tipPostopka = tipPostopkaMatch[1].trim();
+      }
+      
+      // Extract čas učinkovanja
+      const casUcinMatch = casePart.match(/čas\s+začetka\s*učinkovanja\s*(\d{2}.\d{2}.\d{4})\s*(\d+:\d+:\d+)/i);
+      if (casUcinMatch) {
+        caseData.casUcinDatum = casUcinMatch[1].trim();
+        caseData.casUcinCas = casUcinMatch[2].trim();
+      }
+      
+      // Extract stanje zadeve
+      const stanjeZadeveMatch = casePart.match(/stanje\s+zadeve\s+(.*?)(?=način|$)/i);
+      if (stanjeZadeveMatch) {
+        caseData.stanjeZadeve = stanjeZadeveMatch[1].trim();
+      }
+      
+      // Extract način odločitve
+      const nacinOdlMatch = casePart.match(/način\s+odločitve\s*o\s*vpisu:\s*(.*?)(?=\s*tip\s*pripada|$)/i);
+      if (nacinOdlMatch) {
+        caseData.nacinOd = nacinOdlMatch[1].trim();
+      }
+      
+      // Only add if we have a valid zadeva Dn reference
+      if (caseData.zadevaDn) {
+        plombeData.push(caseData);
+      }
+    }
+    
+    return plombeData;
+  }
 
   function extractImetnikData(stringOut) {
     const imetnikRegex = /imetnik:\s*(\d+\.)\s*(.*?)(?=imetnik:\s*\d+\.|$)/gs;
@@ -384,144 +418,7 @@ pdfData.priimek_ime = extractedData.priimek_ime;
   const currentPdfData = extractedDataByPdf[index] || {};
 
   return (
-    <div className="forms">
-      <h3>PDF #{index + 1} Data</h3>
-      <div>ID: {currentPdfData.sifra || "/"}</div>
-      <div>parcela: {currentPdfData.parcela || "/"}</div>
-      
-      <h4>EMŠO:</h4>
-      <ul>
-        {currentPdfData.emso?.length > 0 ? currentPdfData.emso.map((emso, idx) => (
-          <li key={idx}>{emso}</li>
-        )) : <li>ni nobenga emša</li>}
-      </ul>
-      
-      <h4>Ime in priimek:</h4>
-      <ul>
-        {currentPdfData.priimek_ime?.length > 0 ? currentPdfData.priimek_ime.map((ime, idx) => (
-          <li key={idx}>{ime}</li>
-        )) : <li>ni nobenga imena</li>}
-      </ul>
-      
-      <h4>Naslov:</h4>
-      <ul>
-        {currentPdfData.naslov?.length > 0 ? currentPdfData.naslov.map((n, idx) => (
-          <li key={idx}>{n}</li>
-        )) : <li>ni nobenga naslova</li>}
-      </ul>
-      
-      <h4>Pošta:</h4>
-      <ul>
-        {currentPdfData.posta?.length > 0 ? currentPdfData.posta.map((p, idx) => (
-          <li key={idx}>{p}</li>
-        )) : <li>ni nobene poste</li>}
-      </ul>
-      
-      <h4>Delež:</h4>
-      <ul>
-        {currentPdfData.delez?.length > 0 ? currentPdfData.delez.map((d, idx) => (
-          <li key={idx}>{d}</li>
-        )) : <li>ni nobenga deleza</li>}
-      </ul>
-      
-      <h4>Zadeva Dn:</h4>
-      <ul>
-        {currentPdfData.zadevaDn?.length > 0 ? currentPdfData.zadevaDn.map((z, idx) => (
-          <li key={idx}>{z}</li>
-        )) : <li>ni nobene zadeve</li>}
-      </ul>
-      
-      <h4>Tip postopka:</h4>
-      <ul>
-        {currentPdfData.tipPostopka?.length > 0 ? currentPdfData.tipPostopka.map((t, idx) => (
-          <li key={idx}>{t}</li>
-        )) : <li>ni nobenga postopka</li>}
-      </ul>
-      
-      <h4>Datum učinkovanja:</h4>
-      <ul>
-        {currentPdfData.casUcinDatum?.length > 0 ? currentPdfData.casUcinDatum.map((d, idx) => (
-          <li key={idx}>{d}</li>
-        )) : <li>ni nobenga datuma</li>}
-      </ul>
-      
-      <h4>Čas učinkovanja:</h4>
-      <ul>
-        {currentPdfData.casUcinCas?.length > 0 ? currentPdfData.casUcinCas.map((c, idx) => (
-          <li key={idx}>{c}</li>
-        )) : <li>ni nobenga casa</li>}
-      </ul>
-      
-      <h4>Stanje zadeve:</h4>
-      <ul>
-        {currentPdfData.stanjeZadeve?.length > 0 ? currentPdfData.stanjeZadeve.map((s, idx) => (
-          <li key={idx}>{s}</li>
-        )) : <li>ni nobene zadeve</li>}
-      </ul>
-      
-      <h4>Način odločitve:</h4>
-      <ul>
-        {currentPdfData.nacinOd?.length > 0 ? currentPdfData.nacinOd.map((n, idx) => (
-          <li key={idx}>{n}</li>
-        )) : <li>ni nobene odl</li>}
-      </ul>
-      
-      <h4>ID pravice:</h4>
-      <ul>
-        {currentPdfData.idPravice?.length > 0 ? currentPdfData.idPravice.map((i, idx) => (
-          <li key={idx}>{i}</li>
-        )) : <li>ni nobene idPravice</li>}
-      </ul>
-      
-      <h4>Vrsta pravice:</h4>
-      <ul>
-        {currentPdfData.vrstaPravice?.length > 0 ? currentPdfData.vrstaPravice.map((v, idx) => (
-          <li key={idx}>{v}</li>
-        )) : <li>ni nobene vrsta pravice</li>}
-      </ul>
-      
-      <h4>Datum učinkovanja (služnosti):</h4>
-      <ul>
-        {currentPdfData.ucinDatum?.length > 0 ? currentPdfData.ucinDatum.map((d, idx) => (
-          <li key={idx}>{d}</li>
-        )) : <li>ni nobenega datuma</li>}
-      </ul>
-      
-      <h4>Ura učinkovanja:</h4>
-      <ul>
-        {currentPdfData.ucinUra?.length > 0 ? currentPdfData.ucinUra.map((u, idx) => (
-          <li key={idx}>{u}</li>
-        )) : <li>ni nobene ure</li>}
-      </ul>
-      
-      <h4>Imetnik naziv:</h4>
-      <ul>
-        {currentPdfData.imetnikNaziv?.length > 0 ? currentPdfData.imetnikNaziv.map((i, idx) => (
-          <li key={idx}>{i}</li>
-        )) : <li>ni nobene imetnikNaziv</li>}
-      </ul>
-      
-      <h4>Imetnik naslov:</h4>
-      <ul>
-        {currentPdfData.imetnikNaslov?.length > 0 ? currentPdfData.imetnikNaslov.map((i, idx) => (
-          <li key={idx}>{i}</li>
-        )) : <li>ni nobene imetnikNaslov</li>}
-      </ul>
-      
-      <h4>Imetnik pošta:</h4>
-      <ul>
-        {currentPdfData.imetnikPosta?.length > 0 ? currentPdfData.imetnikPosta.map((i, idx) => (
-          <li key={idx}>{i}</li>
-        )) : <li>ni nobene imetnikPosta</li>}
-      </ul>
-      
-      <h4>Opis:</h4>
-      <ul>
-        {currentPdfData.opis?.length > 0 ? currentPdfData.opis.map((o, idx) => (
-          <li key={idx}>{o}</li>
-        )) : <li>ni nobenega opisa</li>}
-      </ul>
-    </div>
+    <></>
   );
 }
 
