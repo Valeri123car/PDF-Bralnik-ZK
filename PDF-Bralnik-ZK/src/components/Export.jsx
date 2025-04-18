@@ -1,3 +1,6 @@
+// This is an updated version of the Export to Excel component that 
+// keeps the original column structure without the separate matična številka column
+
 import * as XLSX from 'xlsx';
 import { usePdf } from './PdfContext';
 import { useState } from 'react';
@@ -59,7 +62,7 @@ function ExportToExcel() {
       } catch (err) {
         workbook = XLSX.utils.book_new();
         
-        // Create sheets with headers
+        // Create sheets with headers - back to original structure
         lastnikSheet = XLSX.utils.aoa_to_sheet([
           ['Šifra', 'Parcela', 'EMŠO', 'Priimek_Ime', 'Naslov', 'Pošta', 'Delež']
         ]);
